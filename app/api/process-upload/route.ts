@@ -4,6 +4,8 @@ import { inventoryItems, fileUploads } from "@/drizzle/schema";
 import { extractInventoryData } from "@/lib/geminiExtraction";
 import { eq } from "drizzle-orm";
 import { join } from "path";
+import { unlink } from "fs/promises";
+import { existsSync } from "fs";
 
 export async function POST(request: NextRequest) {
   try {
@@ -109,6 +111,19 @@ export async function POST(request: NextRequest) {
       .update(fileUploads)
       .set({ processed: new Date() })
       .where(eq(fileUploads.fileUrl, fileUrl));
+
+    // Clean up the uploaded file after successful processing
+    if (insertedItems.length > 0) {
+      try {
+        if (existsSync(filePath)) {
+          await unlink(filePath);
+          console.log(`🗑️ Cleaned up uploaded file: ${filePath}`);
+        }
+      } catch (cleanupError) {
+        console.warn(`⚠️ Failed to clean up uploaded file: ${filePath}`, cleanupError);
+        // Don't fail the request if cleanup fails
+      }
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,0 +1,46 @@
+"use client";
+
+import { useRealtimeInventory } from "@/hooks/useRealtimeInventory";
+import InventoryTable from "./InventoryTable";
+import { InventoryItem } from "@/drizzle/schema";
+
+interface RealtimeInventoryProps {
+  initialItems: InventoryItem[];
+}
+
+export default function RealtimeInventory({
+  initialItems,
+}: RealtimeInventoryProps) {
+  const { items, isConnected, lastUpdate } = useRealtimeInventory(initialItems);
+
+  return (
+    <div>
+      {/* Connection status indicator */}
+      <div className="flex items-center justify-between mb-4 px-4">
+        <div className="flex items-center gap-2">
+          <div
+            className={`w-2 h-2 rounded-full ${
+              isConnected ? "bg-green-500" : "bg-red-500"
+            }`}
+          />
+          <span className="text-sm text-gray-500">
+            {isConnected ? "Live updates enabled" : "Connecting..."}
+          </span>
+        </div>
+        {lastUpdate && (
+          <span className="text-sm text-gray-400">
+            Last updated: {lastUpdate.toLocaleTimeString()}
+          </span>
+        )}
+      </div>
+
+      {/* Item count */}
+      <div className="px-4 mb-2">
+        <span className="text-sm text-gray-600">{items.length} items</span>
+      </div>
+
+      {/* Inventory table */}
+      <InventoryTable items={items} />
+    </div>
+  );
+}
