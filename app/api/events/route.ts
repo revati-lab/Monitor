@@ -1,12 +1,25 @@
 import { Pool, PoolClient, Notification } from "pg";
 
 // Create a dedicated pool for SSE connections (separate from the main app pool)
-const ssePool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  connectionTimeoutMillis: 10000,
-  idleTimeoutMillis: 0, // Disable idle timeout for long-lived connections
-  max: 5, // Limit SSE connections
-});
+// Lazy initialization to avoid build-time errors
+let ssePool: Pool | null = null;
+
+function getSsePool(): Pool {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL environment variable is not set");
+  }
+
+  if (!ssePool) {
+    ssePool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 0, // Disable idle timeout for long-lived connections
+      max: 5, // Limit SSE connections
+    });
+  }
+
+  return ssePool;
+}
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -37,7 +50,7 @@ export async function GET(request: Request) {
       });
 
       try {
-        client = await ssePool.connect();
+        client = await getSsePool().connect();
 
         // Subscribe to inventory changes channel
         await client.query("LISTEN inventory_changes");
