@@ -59,6 +59,7 @@ export default function UploadPage() {
           fileName: uploadResult.fileName,
           fileUrl: uploadResult.fileUrl,
           fileType: uploadResult.fileType,
+          csvUrl: uploadResult.csvUrl,
           extractedData: uploadResult.extractedData,
         }),
       });
@@ -78,13 +79,48 @@ export default function UploadPage() {
     }
   };
 
-  const handleCancelPreview = () => {
+  const handleCancelPreview = async () => {
+    // Delete uploaded files when user cancels
+    if (uploadResult) {
+      try {
+        await fetch("/api/delete-upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileUrl: uploadResult.fileUrl,
+            csvUrl: uploadResult.csvUrl,
+          }),
+        });
+        console.log("Cleaned up uploaded files after cancel");
+      } catch (error) {
+        console.warn("Failed to clean up files:", error);
+        // Don't block the UI if cleanup fails
+      }
+    }
+
     setUploadState("idle");
     setUploadResult(null);
     setSaveError(null);
   };
 
-  const handleUploadAnother = () => {
+  const handleUploadAnother = async () => {
+    // Clean up any existing files (in case of error state or after save)
+    if (uploadResult && uploadState === "error") {
+      try {
+        await fetch("/api/delete-upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileUrl: uploadResult.fileUrl,
+            csvUrl: uploadResult.csvUrl,
+          }),
+        });
+        console.log("Cleaned up uploaded files");
+      } catch (error) {
+        console.warn("Failed to clean up files:", error);
+      }
+    }
+
     setUploadState("idle");
     setUploadResult(null);
     setSaveError(null);

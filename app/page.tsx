@@ -77,16 +77,10 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-10">
-      {/* Page Header with gradient accent */}
+      {/* Page Header */}
       <PageHeader
         title="Dashboard"
         description="Upload packing lists and query your inventory using natural language"
-        badge={
-          <span className="inline-flex items-center rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
-            <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-            Live
-          </span>
-        }
       />
 
       {/* Total Stats Grid */}

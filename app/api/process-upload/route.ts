@@ -10,7 +10,7 @@ import { existsSync } from "fs";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fileName, fileUrl, fileType, extractedData: preExtractedData } = body;
+    const { fileName, fileUrl, fileType, csvUrl, extractedData: preExtractedData } = body;
 
     if (!fileName || !fileUrl) {
       return NextResponse.json(
@@ -134,8 +134,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Clean up the uploaded file after successful processing
+    // Clean up uploaded file and CSV after successful processing
     if (insertedItems.length > 0) {
+      // Delete uploaded file
       try {
         if (existsSync(filePath)) {
           await unlink(filePath);
@@ -144,6 +145,20 @@ export async function POST(request: NextRequest) {
       } catch (cleanupError) {
         console.warn(`⚠️ Failed to clean up uploaded file: ${filePath}`, cleanupError);
         // Don't fail the request if cleanup fails
+      }
+
+      // Delete CSV file if it exists
+      if (csvUrl) {
+        try {
+          const csvPath = join(process.cwd(), "public", csvUrl);
+          if (existsSync(csvPath)) {
+            await unlink(csvPath);
+            console.log(`🗑️ Cleaned up CSV file: ${csvPath}`);
+          }
+        } catch (cleanupError) {
+          console.warn(`⚠️ Failed to clean up CSV file: ${csvUrl}`, cleanupError);
+          // Don't fail the request if cleanup fails
+        }
       }
     }
 

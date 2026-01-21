@@ -32,8 +32,12 @@ const InventoryItemSchema = z.object({
 });
 
 const ExtractionSchema = z.object({
-  transferNumber: z.string().nullable().describe("Document/transfer/order number"),
-  transferDate: z.string().nullable().describe("Date on the document"),
+  // IMPORTANT: Only ONE of transferNumber or invoiceNumber should be populated
+  transferNumber: z.string().nullable().describe("Transfer number ONLY - use this ONLY for consignment/transfer/receiving worksheet documents. Look for labels like 'Transfer #', 'Transfer Number', 'Receiving Worksheet'. Do NOT use for invoices."),
+  transferDate: z.string().nullable().describe("Transfer date - only if this is a transfer/consignment document"),
+  invoiceNumber: z.string().nullable().describe("Invoice number ONLY - use this for invoice/purchase/sales documents. Look for labels like 'Invoice #', 'Invoice Number', 'Invoice No', 'Bill Number'. Do NOT use for transfer documents."),
+  invoiceDate: z.string().nullable().describe("Invoice date - only if this is an invoice document"),
+  purchaseDate: z.string().nullable().describe("Purchase date - only if this is an invoice/purchase document"),
   vendorName: z.string().nullable().describe("Vendor/supplier company or person name"),
   vendorAddress: z.string().nullable().describe("Full vendor address"),
   vendorPhone: z.string().nullable().describe("Vendor phone number"),
@@ -47,7 +51,6 @@ const ExtractionSchema = z.object({
   shipmentTerms: z.string().nullable().describe("Shipping terms"),
   freightCarrier: z.string().nullable().describe("Carrier/shipper name"),
   weight: z.string().nullable().describe("Total weight"),
-  invoiceNumber: z.string().nullable().describe("Invoice number if shown"),
   items: z.array(InventoryItemSchema).describe("All items/rows from the document table"),
 });
 

@@ -166,10 +166,15 @@ export function ExtractedDataPreview({
 
       {/* Items Table */}
       <Card className="overflow-hidden">
-        <div className="p-4 border-b border-border">
+        <div className="p-4 border-b border-border flex items-center justify-between">
           <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
             Extracted Items ({data.items.length})
           </h3>
+          {data.items.length > 15 && (
+            <span className="text-xs text-muted-foreground">
+              Scroll to see all items
+            </span>
+          )}
         </div>
 
         {data.items.length === 0 ? (
@@ -178,66 +183,68 @@ export function ExtractedDataPreview({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    #
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Slab Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Serial #
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Block
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Bundle
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Qty (SF)
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Slabs
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Item Code
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-card divide-y divide-border">
-                {data.items.map((item, index) => (
-                  <tr key={index} className="hover:bg-muted/50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
-                      {index + 1}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-foreground">
-                      {item.slabName || item.itemName || "-"}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-foreground">
-                      {item.serialNum || "-"}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
-                      {item.block || "-"}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
-                      {item.bundle || "-"}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
-                      {item.quantitySf || item.quantity || "-"}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
-                      {item.quantitySlabs || 1}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
-                      {item.itemCode || "-"}
-                    </td>
+            <div className={data.items.length > 15 ? "max-h-[600px] overflow-y-auto" : ""}>
+              <table className="min-w-full divide-y divide-border">
+                <thead className="bg-muted/50 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/50">
+                      #
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/50">
+                      Slab Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/50">
+                      Serial #
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/50">
+                      Block
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/50">
+                      Bundle
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/50">
+                      Qty (SF)
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/50">
+                      Slabs
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/50">
+                      Item Code
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-card divide-y divide-border">
+                  {data.items.map((item, index) => (
+                    <tr key={index} className="hover:bg-muted/50">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                        {index + 1}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-foreground">
+                        {item.slabName || item.itemName || "-"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-foreground">
+                        {item.serialNum || "-"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                        {item.block || "-"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                        {item.bundle || "-"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                        {item.quantitySf || item.quantity || "-"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                        {item.quantitySlabs || 1}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
+                        {item.itemCode || "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
