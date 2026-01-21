@@ -1,18 +1,15 @@
 "use client";
 
 import { StatCard } from "@/components/ui/stat-card";
-import { ClickableVendorStat } from "@/components/VendorListDialog";
-import { VendorDetails } from "@/lib/queryHelpers";
 
 interface VendorStatCardProps {
   value: number;
-  vendors: VendorDetails[];
 }
 
-export function VendorStatCard({ value, vendors }: VendorStatCardProps) {
+export function VendorStatCard({ value }: VendorStatCardProps) {
   return (
     <StatCard
-      title="Vendors"
+      title="Vendor (Consignment)"
       value={value}
       icon={
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -23,10 +20,7 @@ export function VendorStatCard({ value, vendors }: VendorStatCardProps) {
           />
         </svg>
       }
-      description="Click to view details"
-      renderValue={() => (
-        <ClickableVendorStat value={value} vendors={vendors} />
-      )}
+      description="Consignment vendors"
     />
   );
 }

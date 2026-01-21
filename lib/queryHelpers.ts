@@ -160,7 +160,7 @@ export async function getInventoryStats() {
       totalItems: consignmentStats.totalItems + ownSlabsStats.totalItems,
       totalQuantitySf: Number(consignmentStats.totalQuantitySf) + Number(ownSlabsStats.totalQuantitySf),
       totalQuantitySlabs: consignmentStats.totalQuantitySlabs + ownSlabsStats.totalQuantitySlabs,
-      uniqueVendors: consignmentStats.uniqueVendors + ownSlabsStats.uniqueVendors,
+      uniqueVendors: consignmentStats.uniqueVendors, // Only count consignment vendors
     }
   };
 }
@@ -254,27 +254,22 @@ export async function getSlabsBySlabName() {
     .slice(0, 10);
 }
 
-// Combined slab count by vendor (from both tables)
+// Slab count by vendor (consignment only)
 export async function getSlabsByVendor() {
-  const [consignmentData, ownSlabsData] = await Promise.all([
-    getConsignmentByVendor(),
-    getOwnSlabsByVendor(),
-  ]);
+  // Only return consignment vendor data
+  return getConsignmentByVendor();
+}
 
-  // Combine data from both tables
-  const combined: Record<string, number> = {};
-  for (const item of consignmentData) {
-    combined[item.name] = (combined[item.name] || 0) + Number(item.value);
-  }
-  for (const item of ownSlabsData) {
-    combined[item.name] = (combined[item.name] || 0) + Number(item.value);
-  }
+// Get unique customer names (transferredTo) from own_slabs
+export async function getCustomerNames(): Promise<string[]> {
+  const result = await db
+    .selectDistinct({ transferredTo: ownSlabs.transferredTo })
+    .from(ownSlabs);
 
-  // Convert to array and sort by value
-  return Object.entries(combined)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 10);
+  return result
+    .map((r) => r.transferredTo)
+    .filter((name): name is string => !!name)
+    .sort();
 }
 
 // Legacy function for backward compatibility
@@ -292,18 +287,18 @@ export async function getAllVendors() {
   return Array.from(allVendors);
 }
 
-// Get vendor details with contact information and slab counts
+// Get vendor details with contact information and slab counts (consignment only)
 export interface VendorDetails {
   vendorName: string;
   vendorAddress: string | null;
   vendorPhone: string | null;
   vendorEmail: string | null;
   slabCount: number;
-  source: 'consignment' | 'own_slabs' | 'both';
+  source: 'consignment';
 }
 
 export async function getVendorDetails(): Promise<VendorDetails[]> {
-  // Get vendor info from consignment
+  // Get vendor info from consignment only
   const consignmentVendors = await db
     .select({
       vendorName: consignment.vendorName,
@@ -314,18 +309,7 @@ export async function getVendorDetails(): Promise<VendorDetails[]> {
     .from(consignment)
     .groupBy(consignment.vendorName, consignment.vendorAddress, consignment.vendorPhone);
 
-  // Get vendor info from own_slabs
-  const ownSlabsVendors = await db
-    .select({
-      vendorName: ownSlabs.vendorName,
-      vendorAddress: ownSlabs.vendorAddress,
-      vendorPhone: ownSlabs.vendorPhone,
-      slabCount: sql<number>`coalesce(sum(coalesce(nullif(${ownSlabs.quantitySlabs}, 0), 1)), 0)::int`,
-    })
-    .from(ownSlabs)
-    .groupBy(ownSlabs.vendorName, ownSlabs.vendorAddress, ownSlabs.vendorPhone);
-
-  // Combine and deduplicate by vendor name
+  // Build vendor list from consignment only
   const vendorMap = new Map<string, VendorDetails>();
 
   for (const v of consignmentVendors) {
@@ -338,32 +322,6 @@ export async function getVendorDetails(): Promise<VendorDetails[]> {
       slabCount: Number(v.slabCount) || 0,
       source: 'consignment',
     });
-  }
-
-  for (const v of ownSlabsVendors) {
-    if (!v.vendorName) continue;
-    const existing = vendorMap.get(v.vendorName);
-    if (existing) {
-      // Vendor exists in both tables
-      existing.slabCount += Number(v.slabCount) || 0;
-      existing.source = 'both';
-      // Use address/phone from own_slabs if consignment doesn't have it
-      if (!existing.vendorAddress && v.vendorAddress) {
-        existing.vendorAddress = v.vendorAddress;
-      }
-      if (!existing.vendorPhone && v.vendorPhone) {
-        existing.vendorPhone = v.vendorPhone;
-      }
-    } else {
-      vendorMap.set(v.vendorName, {
-        vendorName: v.vendorName,
-        vendorAddress: v.vendorAddress,
-        vendorPhone: v.vendorPhone,
-        vendorEmail: null,
-        slabCount: Number(v.slabCount) || 0,
-        source: 'own_slabs',
-      });
-    }
   }
 
   // Convert to array and sort by slab count

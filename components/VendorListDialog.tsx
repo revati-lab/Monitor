@@ -56,7 +56,7 @@ export function VendorListDialog({ vendors, open, onOpenChange }: VendorListDial
                             : 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
                         }`}>
                           {vendor.source === 'consignment' ? 'Consignment' :
-                           vendor.source === 'own_slabs' ? 'Own Slabs' : 'Both'}
+                           vendor.source === 'own_slabs' ? 'Customer' : 'Both'}
                         </span>
                       </div>
                     </div>

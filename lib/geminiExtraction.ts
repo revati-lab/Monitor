@@ -97,6 +97,11 @@ function nullToUndefined<T>(value: T | null): T | undefined {
  */
 const EXTRACTION_PROMPT = `Extract ALL data from this document exactly as displayed.
 
+DOCUMENT TYPE DETECTION (IMPORTANT):
+- If document has "Invoice", "Invoice #", "Invoice Number", "Bill", "Sales Order", or shows pricing/totals → Use invoiceNumber, invoiceDate, purchaseDate
+- If document has "Transfer", "Transfer #", "Receiving Worksheet", "Consignment", "Packing List" → Use transferNumber, transferDate
+- Only populate ONE type: either invoiceNumber OR transferNumber, not both
+
 RULES:
 - Extract EVERY table row - do not skip any
 - Keep exact formatting (commas, decimals, units, quotes)
@@ -104,7 +109,7 @@ RULES:
 - quantity field: preserve EXACT text with dimensions (e.g., '138" X 79" = 75.71')
 - quantitySf/quantitySlabs: numeric values only
 
-Extract: transferNumber, transferDate, vendorName, vendorAddress, vendorPhone, vendorFax, transferredTo, destinationAddress, destinationPhone, destinationEmail, reqShipDate, deliveryMethod, shipmentTerms, freightCarrier, weight, invoiceNumber, and ALL items with their fields.`;
+Extract: transferNumber, transferDate, invoiceNumber, invoiceDate, purchaseDate, vendorName, vendorAddress, vendorPhone, vendorFax, transferredTo, destinationAddress, destinationPhone, destinationEmail, reqShipDate, deliveryMethod, shipmentTerms, freightCarrier, weight, and ALL items with their fields.`;
 
 /**
  * Extract inventory data using Gemini 2.0 Flash with Vercel AI SDK generateObject
@@ -178,6 +183,9 @@ export async function extractWithGemini(
     console.log(`📋 Extracted header data:`, {
       transferNumber: extractedData.transferNumber,
       transferDate: extractedData.transferDate,
+      invoiceNumber: extractedData.invoiceNumber,
+      invoiceDate: extractedData.invoiceDate,
+      purchaseDate: extractedData.purchaseDate,
       vendorName: extractedData.vendorName,
       transferredTo: extractedData.transferredTo,
       itemCount: extractedData.items?.length || 0,
@@ -201,6 +209,8 @@ export async function extractWithGemini(
       freightCarrier: nullToUndefined(extractedData.freightCarrier),
       weight: nullToUndefined(extractedData.weight),
       invoiceNumber: nullToUndefined(extractedData.invoiceNumber),
+      invoiceDate: nullToUndefined(extractedData.invoiceDate),
+      purchaseDate: nullToUndefined(extractedData.purchaseDate),
       items: (extractedData.items || []).map((item) => ({
         itemCode: nullToUndefined(item.itemCode),
         itemName: nullToUndefined(item.itemName),

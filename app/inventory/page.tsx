@@ -1,4 +1,5 @@
 import RealtimeInventory from "@/components/RealtimeInventory";
+import { PageHeader } from "@/components/ui/section-header";
 import { db } from "@/lib/db";
 import { consignment, ownSlabs } from "@/drizzle/schema";
 
@@ -12,8 +13,11 @@ async function getInventoryItems() {
 
     // Add source indicator and combine
     const combined = [
-      ...consignmentItems.map(item => ({ ...item, source: 'consignment' as const })),
-      ...ownSlabItems.map(item => ({ ...item, source: 'own_slabs' as const })),
+      ...consignmentItems.map((item) => ({
+        ...item,
+        source: "consignment" as const,
+      })),
+      ...ownSlabItems.map((item) => ({ ...item, source: "own_slabs" as const })),
     ];
 
     return combined;
@@ -27,13 +31,13 @@ export default async function InventoryPage() {
   const items = await getInventoryItems();
 
   return (
-    <div className="px-4 py-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Inventory</h1>
-        <p className="text-muted-foreground">Real-time inventory management</p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Inventory"
+        description="Real-time inventory management with live updates"
+      />
 
-      <div className="bg-card rounded-lg shadow border border-border overflow-hidden">
+      <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
         <RealtimeInventory initialItems={items} />
       </div>
     </div>

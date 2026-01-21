@@ -62,9 +62,9 @@ export function ExtractedDataPreview({
 }: ExtractedDataPreviewProps) {
   const [isSaving, setIsSaving] = useState(false);
 
-  // Determine if this is consignment or own slabs
+  // Determine if this is consignment or customer
   const isConsignment = !!data.transferNumber;
-  const targetTable = isConsignment ? "Consignment" : "Own Slabs";
+  const targetTable = isConsignment ? "Consignment" : "Customer";
 
   const handleConfirm = async () => {
     setIsSaving(true);

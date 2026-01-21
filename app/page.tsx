@@ -1,372 +1,93 @@
-import Link from "next/link";
-import { getInventoryStats, getSlabsBySlabName, getSlabsByVendor, getConsignmentBySlabName, getOwnSlabsBySlabName, getVendorDetails, VendorDetails } from "@/lib/queryHelpers";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
-import { ActionCard, ActionCardGrid } from "@/components/ui/action-card";
-import { PageHeader, SectionHeader } from "@/components/ui/section-header";
-import { PieChartCard } from "@/components/ui/pie-chart";
-import { VendorStatCard } from "@/components/VendorStatCard";
+import {
+  getInventoryStats,
+  getSlabsBySlabName,
+  getSlabsByVendor,
+  getConsignmentBySlabName,
+  getOwnSlabsBySlabName,
+  getVendorDetails,
+  getCustomerNames,
+} from "@/lib/queryHelpers";
+import { DashboardClient } from "@/components/DashboardClient";
+import { DashboardData } from "@/hooks/useDashboardStats";
 
 export default async function HomePage() {
-  let stats = {
-    totalItems: 0,
-    totalVendors: 0,
-    totalQuantitySf: 0,
-    totalQuantitySlabs: 0,
-    consignment: { totalItems: 0, totalQuantitySf: 0, totalQuantitySlabs: 0 },
-    ownSlabs: { totalItems: 0, totalQuantitySf: 0, totalQuantitySlabs: 0 },
+  let initialData: DashboardData = {
+    stats: {
+      totalItems: 0,
+      totalVendors: 0,
+      totalQuantitySf: 0,
+      totalQuantitySlabs: 0,
+      consignment: { totalItems: 0, totalQuantitySf: 0, totalQuantitySlabs: 0 },
+      ownSlabs: { totalItems: 0, totalQuantitySf: 0, totalQuantitySlabs: 0 },
+    },
+    slabsByItem: [],
+    slabsByVendor: [],
+    consignmentBySlabName: [],
+    ownSlabsBySlabName: [],
+    vendorDetails: [],
+    customerNames: [],
   };
-  let slabsByItem: { name: string; value: number }[] = [];
-  let slabsByVendor: { name: string; value: number }[] = [];
-  let consignmentBySlabName: { name: string; value: number }[] = [];
-  let ownSlabsBySlabName: { name: string; value: number }[] = [];
-  let vendorDetails: VendorDetails[] = [];
 
   try {
-    const [dbStats, slabData, vendorData, consignmentSlabs, ownSlabs, vendors] = await Promise.all([
-      getInventoryStats(),
-      getSlabsBySlabName(),
-      getSlabsByVendor(),
-      getConsignmentBySlabName(),
-      getOwnSlabsBySlabName(),
-      getVendorDetails(),
-    ]);
+    const [dbStats, slabData, vendorData, consignmentSlabs, ownSlabs, vendors, customerNames] =
+      await Promise.all([
+        getInventoryStats(),
+        getSlabsBySlabName(),
+        getSlabsByVendor(),
+        getConsignmentBySlabName(),
+        getOwnSlabsBySlabName(),
+        getVendorDetails(),
+        getCustomerNames(),
+      ]);
 
-    vendorDetails = vendors;
-
-    stats = {
-      totalItems: dbStats.total.totalItems,
-      totalVendors: dbStats.total.uniqueVendors,
-      totalQuantitySf: Number(dbStats.total.totalQuantitySf) || 0,
-      totalQuantitySlabs: dbStats.total.totalQuantitySlabs || 0,
-      consignment: {
-        totalItems: dbStats.consignment.totalItems,
-        totalQuantitySf: Number(dbStats.consignment.totalQuantitySf) || 0,
-        totalQuantitySlabs: dbStats.consignment.totalQuantitySlabs || 0,
+    initialData = {
+      stats: {
+        totalItems: dbStats.total.totalItems,
+        totalVendors: dbStats.total.uniqueVendors,
+        totalQuantitySf: Number(dbStats.total.totalQuantitySf) || 0,
+        totalQuantitySlabs: dbStats.total.totalQuantitySlabs || 0,
+        consignment: {
+          totalItems: dbStats.consignment.totalItems,
+          totalQuantitySf: Number(dbStats.consignment.totalQuantitySf) || 0,
+          totalQuantitySlabs: dbStats.consignment.totalQuantitySlabs || 0,
+        },
+        ownSlabs: {
+          totalItems: dbStats.ownSlabs.totalItems,
+          totalQuantitySf: Number(dbStats.ownSlabs.totalQuantitySf) || 0,
+          totalQuantitySlabs: dbStats.ownSlabs.totalQuantitySlabs || 0,
+        },
       },
-      ownSlabs: {
-        totalItems: dbStats.ownSlabs.totalItems,
-        totalQuantitySf: Number(dbStats.ownSlabs.totalQuantitySf) || 0,
-        totalQuantitySlabs: dbStats.ownSlabs.totalQuantitySlabs || 0,
-      },
+      slabsByItem: slabData.map((item) => ({
+        name: item.name || "Unknown",
+        value: Number(item.value) || 0,
+      })),
+      slabsByVendor: vendorData.map((item) => ({
+        name: item.name || "Unknown",
+        value: Number(item.value) || 0,
+      })),
+      consignmentBySlabName: consignmentSlabs.map((item) => ({
+        name: item.name || "Unknown",
+        value: Number(item.value) || 0,
+      })),
+      ownSlabsBySlabName: ownSlabs.map((item) => ({
+        name: item.name || "Unknown",
+        value: Number(item.value) || 0,
+      })),
+      vendorDetails: vendors.map((v) => ({
+        vendorName: v.vendorName,
+        slabCount: v.slabCount,
+        totalSf: 0,
+      })),
+      customerNames,
     };
-
-    slabsByItem = slabData.map((item) => ({
-      name: item.name || "Unknown",
-      value: Number(item.value) || 0,
-    }));
-
-    slabsByVendor = vendorData.map((item) => ({
-      name: item.name || "Unknown",
-      value: Number(item.value) || 0,
-    }));
-
-    consignmentBySlabName = consignmentSlabs.map((item) => ({
-      name: item.name || "Unknown",
-      value: Number(item.value) || 0,
-    }));
-
-    ownSlabsBySlabName = ownSlabs.map((item) => ({
-      name: item.name || "Unknown",
-      value: Number(item.value) || 0,
-    }));
   } catch (error) {
     console.error("Error fetching stats:", error);
   }
 
   return (
-    <div className="space-y-10">
-      {/* Page Header */}
-      <PageHeader
-        title="Dashboard"
-        description="Upload packing lists and query your inventory using natural language"
-      />
-
-      {/* Total Stats Grid */}
-      <section className="space-y-4">
-        <SectionHeader
-          title="Total Inventory"
-          description="Combined stats from consignment and owned slabs"
-        />
-        <StatCardGrid>
-          <StatCard
-            title="Total Items"
-            value={stats.totalItems}
-            variant="gradient"
-            icon={
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
-                />
-              </svg>
-            }
-            description="Tracked in system"
-          />
-          <VendorStatCard value={stats.totalVendors} vendors={vendorDetails} />
-          <StatCard
-            title="Square Feet"
-            value={stats.totalQuantitySf.toLocaleString(undefined, {
-              maximumFractionDigits: 0,
-            })}
-            icon={
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
-                />
-              </svg>
-            }
-            description="Total area"
-          />
-          <StatCard
-            title="Slabs"
-            value={stats.totalQuantitySlabs}
-            icon={
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0l4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0l-5.571 3-5.571-3"
-                />
-              </svg>
-            }
-            description={stats.totalQuantitySlabs === 1 ? "slab" : "slabs total"}
-          />
-        </StatCardGrid>
-      </section>
-
-      {/* Consignment vs Own Slabs Breakdown */}
-      <section className="space-y-4">
-        <SectionHeader
-          title="Inventory Breakdown"
-          description="Comparison between consignment items and owned slabs"
-        />
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Consignment Stats */}
-          <Card className="p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
-                <svg className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125v-9.75c0-.621-.504-1.125-1.125-1.125H12m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0112 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H12m0 0V3.375m0 2.25h9.75" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">Consignment</h3>
-                <p className="text-xs text-muted-foreground">Items received on consignment</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <p className="text-2xl font-bold text-foreground">{stats.consignment.totalItems}</p>
-                <p className="text-xs text-muted-foreground">Items</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{stats.consignment.totalQuantitySlabs}</p>
-                <p className="text-xs text-muted-foreground">Slabs</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{stats.consignment.totalQuantitySf.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                <p className="text-xs text-muted-foreground">Sq Ft</p>
-              </div>
-            </div>
-          </Card>
-
-          {/* Own Slabs Stats */}
-          <Card className="p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
-                <svg className="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">Own Slabs</h3>
-                <p className="text-xs text-muted-foreground">Purchased/owned inventory</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <p className="text-2xl font-bold text-foreground">{stats.ownSlabs.totalItems}</p>
-                <p className="text-xs text-muted-foreground">Items</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{stats.ownSlabs.totalQuantitySlabs}</p>
-                <p className="text-xs text-muted-foreground">Slabs</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{stats.ownSlabs.totalQuantitySf.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                <p className="text-xs text-muted-foreground">Sq Ft</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </section>
-
-      {/* Analytics Section with Pie Charts */}
-      <section className="space-y-4">
-        <SectionHeader
-          title="Inventory Analytics"
-          description="Visual breakdown of your slab inventory"
-        />
-        <div className="grid gap-6 md:grid-cols-2">
-          <PieChartCard
-            data={slabsByItem}
-            title="All Slabs by Type"
-            description="Combined distribution across all inventory"
-            emptyMessage="No slab data available"
-          />
-          <PieChartCard
-            data={slabsByVendor}
-            title="All Slabs by Vendor"
-            description="Combined distribution across all vendors"
-            emptyMessage="No vendor data available"
-          />
-        </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          <PieChartCard
-            data={consignmentBySlabName}
-            title="Consignment by Type"
-            description="Distribution of consignment slabs by type"
-            emptyMessage="No consignment data"
-          />
-          <PieChartCard
-            data={ownSlabsBySlabName}
-            title="Own Slabs by Type"
-            description="Distribution of owned slabs by type"
-            emptyMessage="No own slabs data"
-          />
-        </div>
-      </section>
-
-      {/* Quick Actions */}
-      <section className="space-y-4">
-        <SectionHeader
-          title="Quick Actions"
-          description="Navigate to common tasks"
-          action={
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/inventory">
-                View all inventory
-                <svg
-                  className="ml-1 h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
-                  />
-                </svg>
-              </Link>
-            </Button>
-          }
-        />
-        <ActionCardGrid>
-          <ActionCard
-            href="/upload"
-            variant="highlighted"
-            icon={
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-                />
-              </svg>
-            }
-            title="Upload Files"
-            description="Upload packing lists and invoices for automatic data extraction"
-            badge="Popular"
-          />
-          <ActionCard
-            href="/search"
-            icon={
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"
-                />
-              </svg>
-            }
-            title="Search"
-            description="Query your inventory using natural language"
-          />
-          <ActionCard
-            href="/inventory"
-            icon={
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0112 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 1.5v-1.5m0 0c0-.621.504-1.125 1.125-1.125m0 0h7.5"
-                />
-              </svg>
-            }
-            title="View Inventory"
-            description="Browse and manage all inventory items"
-          />
-        </ActionCardGrid>
-      </section>
-
-      {/* Getting Started (conditional for empty state) */}
-      {stats.totalItems === 0 && (
-        <section className="space-y-4">
-          <Card variant="gradient" className="overflow-hidden">
-            <CardContent className="p-8">
-              <div className="flex flex-col items-center text-center sm:flex-row sm:text-left gap-6">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
-                  <svg
-                    className="h-8 w-8 text-primary"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"
-                    />
-                  </svg>
-                </div>
-                <div className="flex-1 space-y-2">
-                  <h3 className="text-xl font-semibold">Get started with automatic extraction</h3>
-                  <p className="text-muted-foreground">
-                    Upload your first packing list and watch our system automatically extract
-                    inventory data. It&apos;s fast, accurate, and saves hours of manual entry.
-                  </p>
-                </div>
-                <Button variant="gradient" size="lg" asChild className="shrink-0">
-                  <Link href="/upload">
-                    Upload your first file
-                    <svg
-                      className="ml-2 h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
-                      />
-                    </svg>
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      )}
-    </div>
+    <DashboardClient
+      initialData={initialData}
+      pollingInterval={10000}
+    />
   );
 }
