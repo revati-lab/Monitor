@@ -97,10 +97,10 @@ export default function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-[600px] border border-gray-200 rounded-lg bg-white">
+    <div className="flex flex-col h-[600px] border border-border rounded-lg bg-card">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
-          <div className="text-center text-gray-500 py-8">
+          <div className="text-center text-muted-foreground py-8">
             <p className="font-semibold mb-2">Ask questions about your inventory</p>
             <p className="text-sm">Try asking:</p>
             <ul className="text-sm mt-2 space-y-1">
@@ -121,8 +121,8 @@ export default function ChatInterface() {
             <div
               className={`max-w-[80%] rounded-lg px-4 py-2 ${
                 message.role === "user"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-100 text-gray-900"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-foreground"
               }`}
             >
               <div className="whitespace-pre-wrap">{message.content}</div>
@@ -131,30 +131,30 @@ export default function ChatInterface() {
         ))}
         {isLoading && messages[messages.length - 1]?.role === "user" && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 rounded-lg px-4 py-2">
+            <div className="bg-muted rounded-lg px-4 py-2">
               <div className="flex space-x-2">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
+                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
               </div>
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
-      <form onSubmit={handleSubmit} className="border-t p-4">
+      <form onSubmit={handleSubmit} className="border-t border-border p-4">
         <div className="flex space-x-2">
           <input
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             placeholder="Ask about inventory..."
-            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 border border-border bg-background text-foreground rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading || !inputValue.trim()}
-            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Send
           </button>

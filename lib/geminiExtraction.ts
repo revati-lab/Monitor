@@ -4,6 +4,15 @@ import { z } from "zod";
 import { ExtractedInventoryData, ExtractionResult } from "@/types/inventory";
 import { readFileSync, existsSync, statSync } from "fs";
 
+// Performance timing utility
+const perf = {
+  start: () => process.hrtime.bigint(),
+  end: (start: bigint) => {
+    const elapsed = Number(process.hrtime.bigint() - start) / 1_000_000; // Convert to ms
+    return elapsed < 1000 ? `${elapsed.toFixed(2)}ms` : `${(elapsed / 1000).toFixed(2)}s`;
+  },
+};
+
 // Zod schema for inventory item extraction
 const InventoryItemSchema = z.object({
   serialNum: z.string().nullable().describe("Serial number (e.g., '11333-1', '11333-2')"),
@@ -11,12 +20,12 @@ const InventoryItemSchema = z.object({
   bundle: z.string().nullable().describe("Bundle info (e.g., '1/15', '2/15')"),
   block: z.string().nullable().describe("Block identifier (e.g., 'D-10138')"),
   slabNumber: z.string().nullable().describe("Slab dimensions or number (e.g., '38\" X 79\" = 75.71\"')"),
-  description: z.string().nullable().describe("Material/item description (e.g., 'Calacatta Umi MQ 3CM')"),
-  quantity: z.string().nullable().describe("Full quantity string as shown"),
-  quantitySf: z.number().nullable().describe("Numeric square feet value only"),
-  quantitySlabs: z.number().nullable().describe("Numeric slab count only"),
+  slabName: z.string().nullable().describe("Slab/material name or description (e.g., 'Calacatta Umi MQ 3CM', 'White Marble')"),
+  quantity: z.string().nullable().describe("EXACT quantity text as displayed in the document - preserve all formatting, dimensions, units, quotes, and special characters exactly as shown (e.g., '138\" X 79\" = 75.71', '1,135.65 SF (15 Slabs)')"),
+  quantitySf: z.number().nullable().describe("Numeric square feet value only - extract just the number"),
+  quantitySlabs: z.number().nullable().describe("Numeric slab count only - extract just the number"),
   itemCode: z.string().nullable().describe("Item code/SKU if shown"),
-  itemName: z.string().nullable().describe("Item name if different from description"),
+  itemName: z.string().nullable().describe("Item name if different from slab name"),
   bin: z.string().nullable().describe("Bin/location if shown"),
   unitPrice: z.number().nullable().describe("Unit price (number only)"),
   totalPrice: z.number().nullable().describe("Total price (number only)"),
@@ -81,59 +90,31 @@ function nullToUndefined<T>(value: T | null): T | undefined {
 }
 
 /**
- * Extraction prompt for the AI model
+ * Optimized extraction prompt - concise for faster processing
  */
-const EXTRACTION_PROMPT = `You are a document extraction specialist. Analyze this document (PDF or image) and extract ALL visible data exactly as it appears.
+const EXTRACTION_PROMPT = `Extract ALL data from this document exactly as displayed.
 
-CRITICAL INSTRUCTIONS:
-1. Extract EVERY piece of text, number, and data EXACTLY as displayed
-2. For tables: extract EVERY ROW - do not skip any rows
-3. Keep exact number formatting (commas, decimals, units)
-4. If a field is not present in the document, use null
+RULES:
+- Extract EVERY table row - do not skip any
+- Keep exact formatting (commas, decimals, units, quotes)
+- Use null for missing fields
+- quantity field: preserve EXACT text with dimensions (e.g., '138" X 79" = 75.71')
+- quantitySf/quantitySlabs: numeric values only
 
-Look for and extract these fields:
-
-HEADER/DOCUMENT INFO:
-- transferNumber: Document/transfer/order number (look for "Transfer#", "Order#", "Document#", etc.)
-- transferDate: Date on the document
-- invoiceNumber: Invoice number if shown
-
-VENDOR/FROM SECTION (look for "From:", "Transferred From:", "Vendor:", "Supplier:"):
-- vendorName: Company or person name
-- vendorAddress: Full address
-- vendorPhone: Phone number (may have "P:" or "Phone:" prefix)
-- vendorFax: Fax number (may have "F:" or "Fax:" prefix)
-
-DESTINATION/TO SECTION (look for "To:", "Transferred To:", "Ship To:", "Deliver To:"):
-- transferredTo: Destination company/person name
-- destinationAddress: Full destination address
-- destinationPhone: Destination phone
-- destinationEmail: Destination email
-
-SHIPPING INFO:
-- reqShipDate: Required/requested ship date
-- deliveryMethod: How it will be delivered
-- shipmentTerms: Shipping terms
-- freightCarrier: Carrier/shipper name
-- weight: Total weight
-
-ITEMS TABLE - THIS IS THE MOST IMPORTANT PART:
-Extract EVERY row from the items table. For each item/row, capture all available fields including serialNum, barcode, bundle, block, slabNumber, description, quantity, quantitySf, quantitySlabs, itemCode, itemName, bin, unitPrice, totalPrice.
-
-IMPORTANT:
-- Extract ALL items/rows from tables - count them and make sure you have every one
-- Use null for missing fields`;
+Extract: transferNumber, transferDate, vendorName, vendorAddress, vendorPhone, vendorFax, transferredTo, destinationAddress, destinationPhone, destinationEmail, reqShipDate, deliveryMethod, shipmentTerms, freightCarrier, weight, invoiceNumber, and ALL items with their fields.`;
 
 /**
- * Extract inventory data using Gemini 2.5 Flash with Vercel AI SDK generateObject
+ * Extract inventory data using Gemini 2.0 Flash with Vercel AI SDK generateObject
+ * Optimized for speed with concise prompts and fast model
  */
 export async function extractWithGemini(
   filePath: string,
   fileType: string
 ): Promise<ExtractionResult> {
+  const totalStart = perf.start();
+
   try {
-    console.log(`🤖 Starting Gemini extraction with AI SDK for: ${filePath}`);
-    console.log(`📄 File type: ${fileType}`);
+    console.log(`🤖 Starting optimized Gemini extraction for: ${filePath}`);
 
     // Check if file exists
     if (!existsSync(filePath)) {
@@ -149,13 +130,11 @@ export async function extractWithGemini(
     const fileStats = statSync(filePath);
     const fileSizeKB = Math.round(fileStats.size / 1024);
 
-    console.log(`📦 File size: ${fileSizeKB} KB, MIME type: ${mimeType}`);
-
     // Read file and convert to base64
+    const fileLoadStart = perf.start();
     const fileBuffer = readFileSync(filePath);
     const base64Data = fileBuffer.toString("base64");
-
-    console.log(`📤 File loaded (${base64Data.length} base64 characters)`);
+    console.log(`📤 File loaded (${fileSizeKB}KB) in ${perf.end(fileLoadStart)}`);
 
     // Get the AI provider
     let provider;
@@ -170,9 +149,9 @@ export async function extractWithGemini(
       };
     }
 
-    console.log(`🚀 Calling Gemini 2.5 Flash via Vercel AI Gateway with generateObject...`);
+    console.log(`🚀 Calling Gemini 2.5 Flash (optimized for speed)...`);
+    const apiStart = perf.start();
 
-    // Use generateObject for structured output
     const { object: extractedData } = await generateObject({
       model: provider("gemini-2.5-flash"),
       schema: ExtractionSchema,
@@ -191,7 +170,8 @@ export async function extractWithGemini(
       ],
     });
 
-    console.log(`✅ Gemini response received via generateObject`);
+    console.log(`⚡ Gemini 2.5 Flash responded in ${perf.end(apiStart)}`);
+
     console.log(`📋 Extracted header data:`, {
       transferNumber: extractedData.transferNumber,
       transferDate: extractedData.transferDate,
@@ -221,7 +201,7 @@ export async function extractWithGemini(
       items: (extractedData.items || []).map((item) => ({
         itemCode: nullToUndefined(item.itemCode),
         itemName: nullToUndefined(item.itemName),
-        description: nullToUndefined(item.description),
+        slabName: nullToUndefined(item.slabName),
         serialNum: nullToUndefined(item.serialNum),
         barcode: nullToUndefined(item.barcode),
         bundle: nullToUndefined(item.bundle),
@@ -236,7 +216,7 @@ export async function extractWithGemini(
       })),
     };
 
-    console.log(`✅ Gemini extraction complete: ${result.items.length} items extracted`);
+    console.log(`✅ Extraction complete: ${result.items.length} items in ${perf.end(totalStart)} total`);
 
     return {
       success: true,

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface UploadResult {
   fileName: string;
@@ -65,9 +67,9 @@ export default function FileUpload({ onUploadComplete, onUploadStart }: FileUplo
   const getErrorMessage = (errorCode?: string): string => {
     switch (errorCode) {
       case 'API_KEY_MISSING':
-        return 'Gemini API key is missing or invalid. Please check your configuration.';
+        return 'API key is missing or invalid. Please check your configuration.';
       case 'API_ERROR':
-        return 'Failed to communicate with Gemini API. Please try again.';
+        return 'Failed to communicate with the server. Please try again.';
       case 'FILE_UPLOAD_FAILED':
         return 'Failed to upload file for processing.';
       case 'PARSE_ERROR':
@@ -97,7 +99,7 @@ export default function FileUpload({ onUploadComplete, onUploadStart }: FileUplo
     }
 
     // Validate file size (10MB limit)
-    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
       setUploadError({
         message: "File size exceeds 10MB limit. Please upload a smaller file.",
@@ -120,7 +122,6 @@ export default function FileUpload({ onUploadComplete, onUploadStart }: FileUplo
       });
 
       if (!response.ok) {
-        // Try to get error message from response
         let errorMessage = "Upload failed. Please try again.";
         let errorCode = "HTTP_ERROR";
         try {
@@ -128,7 +129,6 @@ export default function FileUpload({ onUploadComplete, onUploadStart }: FileUplo
           errorMessage = errorData.error || errorMessage;
           errorCode = errorData.errorCode || errorCode;
         } catch {
-          // If response is not JSON, use status-based message
           if (response.status === 400) {
             errorMessage = "Invalid file. Please check the file and try again.";
           } else if (response.status === 413) {
@@ -142,7 +142,6 @@ export default function FileUpload({ onUploadComplete, onUploadStart }: FileUplo
 
       const data: UploadResult = await response.json();
 
-      // Check if there's an error in the response (extraction failed)
       if (data.error || data.success === false) {
         const errorMsg = data.error || getErrorMessage(data.errorCode);
         setUploadError({
@@ -152,12 +151,10 @@ export default function FileUpload({ onUploadComplete, onUploadStart }: FileUplo
         });
         setUploadSuccess(false);
       } else {
-        // Show success message
         setUploadSuccess(true);
         setUploadedFileName(file.name);
         setUploadError(null);
 
-        // Reset success message after 5 seconds
         setTimeout(() => {
           setUploadSuccess(false);
           setUploadedFileName(null);
@@ -183,15 +180,17 @@ export default function FileUpload({ onUploadComplete, onUploadStart }: FileUplo
 
   return (
     <div
-      className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+      className={cn(
+        "relative rounded-xl border-2 border-dashed p-8 text-center transition-all duration-300",
         uploadError
-          ? "border-red-500 bg-red-50"
+          ? "border-destructive/50 bg-destructive/5"
           : dragActive
-          ? "border-blue-500 bg-blue-50"
+          ? "border-primary bg-primary/5 scale-[1.01]"
           : uploadSuccess
-          ? "border-green-500 bg-green-50"
-          : "border-gray-300 hover:border-gray-400"
-      } ${uploading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+          ? "border-success/50 bg-success/5"
+          : "border-border hover:border-primary/50 hover:bg-accent/50",
+        uploading ? "opacity-70 pointer-events-none" : "cursor-pointer"
+      )}
       onDragEnter={handleDrag}
       onDragLeave={handleDrag}
       onDragOver={handleDrag}
@@ -206,109 +205,136 @@ export default function FileUpload({ onUploadComplete, onUploadStart }: FileUplo
         onChange={handleChange}
         disabled={uploading}
       />
+
       {uploading ? (
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-2"></div>
-          <p className="text-gray-600">Uploading...</p>
+        <div className="flex flex-col items-center animate-fade-in">
+          <div className="relative mb-4">
+            <div className="h-14 w-14 rounded-full border-4 border-muted" />
+            <div className="absolute inset-0 h-14 w-14 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+          </div>
+          <p className="text-base font-medium text-foreground">Processing your file...</p>
+          <p className="text-sm text-muted-foreground mt-1">Extracting data from document</p>
         </div>
       ) : uploadError ? (
-        <div className="flex flex-col items-center">
-          <div className="rounded-full bg-red-100 p-3 mb-2">
+        <div className="flex flex-col items-center animate-fade-in">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 mb-4">
             <svg
-              className="h-8 w-8 text-red-600"
+              className="h-7 w-7 text-destructive"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              strokeWidth={1.5}
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
+                d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
               />
             </svg>
           </div>
-          <p className="text-red-600 font-semibold">Extraction Failed</p>
+          <p className="text-base font-semibold text-destructive">Extraction Failed</p>
           {uploadError.code && (
-            <p className="text-xs text-red-400 mt-1 font-mono">
-              Error Code: {uploadError.code}
-            </p>
+            <span className="mt-1 inline-flex items-center rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-mono text-destructive">
+              {uploadError.code}
+            </span>
           )}
-          <p className="text-sm text-red-600 mt-1 text-center max-w-md">
+          <p className="text-sm text-muted-foreground mt-2 max-w-sm">
             {uploadError.message}
           </p>
           {uploadError.details && (
-            <div className="mt-2 w-full max-w-md">
+            <div className="mt-3 w-full max-w-sm">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowErrorDetails(!showErrorDetails);
                 }}
-                className="text-xs text-red-500 hover:text-red-700 underline"
+                className="text-xs text-destructive hover:text-destructive/80 underline underline-offset-2"
               >
-                {showErrorDetails ? "Hide Details" : "Show Details"}
+                {showErrorDetails ? "Hide technical details" : "Show technical details"}
               </button>
               {showErrorDetails && (
-                <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-left font-mono text-red-700 max-h-32 overflow-auto">
+                <div className="mt-2 p-3 bg-destructive/5 border border-destructive/20 rounded-lg text-xs text-left font-mono text-destructive/80 max-h-32 overflow-auto scrollbar-thin">
                   {uploadError.details}
                 </div>
               )}
             </div>
           )}
-          <button
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-4"
             onClick={(e) => {
               e.stopPropagation();
               setUploadError(null);
               setShowErrorDetails(false);
             }}
-            className="mt-3 text-xs text-red-600 hover:text-red-800 underline"
           >
-            Dismiss & Try Again
-          </button>
+            Try again
+          </Button>
         </div>
       ) : uploadSuccess ? (
-        <div className="flex flex-col items-center">
-          <div className="rounded-full bg-green-100 p-3 mb-2">
+        <div className="flex flex-col items-center animate-fade-in">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-success/10 mb-4">
             <svg
-              className="h-8 w-8 text-green-600"
+              className="h-7 w-7 text-success"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              strokeWidth={2}
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
+                d="M4.5 12.75l6 6 9-13.5"
               />
             </svg>
           </div>
-          <p className="text-green-600 font-semibold">Upload Successful!</p>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-base font-semibold text-success">Upload Successful!</p>
+          <p className="text-sm text-muted-foreground mt-1">
             {uploadedFileName}
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Data has been extracted and saved
           </p>
         </div>
       ) : (
         <div className="flex flex-col items-center">
-          <svg
-            className="mx-auto h-12 w-12 text-gray-400"
-            stroke="currentColor"
-            fill="none"
-            viewBox="0 0 48 48"
-          >
-            <path
-              d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <p className="mt-2 text-sm text-gray-600">
-            <span className="font-semibold">Click to upload</span> or drag and drop
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 mb-4 transition-colors group-hover:bg-primary/20">
+            <svg
+              className="h-7 w-7 text-primary"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+              />
+            </svg>
+          </div>
+          <p className="text-base font-medium text-foreground">
+            Drop your file here, or{" "}
+            <span className="text-primary">browse</span>
           </p>
-          <p className="text-xs text-gray-500 mt-1">
-            PNG, JPG, PDF up to 10MB
+          <p className="text-sm text-muted-foreground mt-1">
+            PDF, PNG, or JPG up to 10MB
           </p>
+          <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+              </svg>
+              Smart extraction
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+              </svg>
+              Instant processing
+            </span>
+          </div>
         </div>
       )}
     </div>

@@ -12,7 +12,7 @@ The inventory database has the following schema:
 - quantity: Quantity of items
 - unitPrice: Price per unit (optional)
 - totalPrice: Total price (optional)
-- uploadDate: Date when the item was uploaded
+- transferDate: Transfer date from the document
 
 When a user asks a question, extract the following parameters if mentioned:
 - vendorName: Look for vendor or supplier names

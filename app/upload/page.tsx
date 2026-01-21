@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import FileUpload from "@/components/FileUpload";
+import { ExtractedDataPreview } from "@/components/ExtractedDataPreview";
+import { Button } from "@/components/ui/button";
 
 interface UploadResult {
   fileName: string;
@@ -11,161 +13,231 @@ interface UploadResult {
   itemsCount?: number;
   extractedData?: any;
   error?: string;
+  success?: boolean;
 }
 
+type UploadState = "idle" | "uploading" | "preview" | "saving" | "saved" | "error";
+
 export default function UploadPage() {
+  const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedItemsCount, setSavedItemsCount] = useState(0);
 
   const handleUploadComplete = async (data: UploadResult) => {
     setUploadResult(data);
-    setIsUploading(false);
+
+    if (data.error || data.success === false) {
+      setUploadState("error");
+    } else if (data.extractedData && data.extractedData.items?.length > 0) {
+      // Show preview for confirmation
+      setUploadState("preview");
+    } else {
+      // No items extracted
+      setUploadState("error");
+    }
   };
 
   const handleUploadStart = () => {
-    setIsUploading(true);
+    setUploadState("uploading");
     setUploadResult(null);
+    setSaveError(null);
+    setSavedItemsCount(0);
+  };
+
+  const handleConfirmSave = async () => {
+    if (!uploadResult) return;
+
+    setUploadState("saving");
+    setSaveError(null);
+
+    try {
+      const response = await fetch("/api/process-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: uploadResult.fileName,
+          fileUrl: uploadResult.fileUrl,
+          fileType: uploadResult.fileType,
+          extractedData: uploadResult.extractedData,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to save data");
+      }
+
+      setSavedItemsCount(result.items?.length || 0);
+      setUploadState("saved");
+    } catch (error: any) {
+      console.error("Save error:", error);
+      setSaveError(error.message || "Failed to save data to database");
+      setUploadState("preview"); // Go back to preview state on error
+    }
+  };
+
+  const handleCancelPreview = () => {
+    setUploadState("idle");
+    setUploadResult(null);
+    setSaveError(null);
+  };
+
+  const handleUploadAnother = () => {
+    setUploadState("idle");
+    setUploadResult(null);
+    setSaveError(null);
+    setSavedItemsCount(0);
   };
 
   return (
-    <div className="px-4 py-6 max-w-4xl mx-auto">
+    <div className="px-4 py-6 max-w-5xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload Files</h1>
-        <p className="text-gray-600">
-          Upload packing list images or PDFs to extract inventory data to CSV
+        <h1 className="text-3xl font-bold text-foreground mb-2">Upload Files</h1>
+        <p className="text-muted-foreground">
+          Upload packing list images or PDFs to extract and save inventory data
         </p>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Upload File</h2>
-        <FileUpload
-          onUploadComplete={handleUploadComplete}
-          onUploadStart={handleUploadStart}
-        />
-      </div>
+      {/* Upload Section - Show when idle or uploading */}
+      {(uploadState === "idle" || uploadState === "uploading") && (
+        <div className="bg-card rounded-lg shadow border border-border p-6 mb-6">
+          <h2 className="text-xl font-semibold text-foreground mb-4">Upload File</h2>
+          <FileUpload
+            onUploadComplete={handleUploadComplete}
+            onUploadStart={handleUploadStart}
+          />
+        </div>
+      )}
 
-      {isUploading && (
-        <div className="bg-blue-50 rounded-lg shadow p-6 mb-6">
+      {/* Processing indicator */}
+      {uploadState === "uploading" && (
+        <div className="bg-primary/10 rounded-lg shadow border border-primary/20 p-6 mb-6">
           <div className="flex items-center gap-3">
-            <svg className="animate-spin h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24">
+            <svg className="animate-spin h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
             <div>
-              <p className="font-medium text-blue-800">Processing file with Gemini AI...</p>
-              <p className="text-sm text-blue-600">Extracting data from your document</p>
+              <p className="font-medium text-primary">Processing file...</p>
+              <p className="text-sm text-primary/80">Extracting data from your document</p>
             </div>
           </div>
         </div>
       )}
 
-      {uploadResult && (
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Extraction Results</h2>
-            {uploadResult.error ? (
-              <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-                Error
-              </span>
-            ) : uploadResult.csvUrl ? (
-              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                Success
-              </span>
-            ) : (
-              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
-                No Data
-              </span>
-            )}
+      {/* Error State */}
+      {uploadState === "error" && uploadResult && (
+        <div className="bg-card rounded-lg shadow border border-border p-6 mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+              <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-destructive">Extraction Failed</h2>
+              <p className="text-sm text-muted-foreground">
+                {uploadResult.error || "No items could be extracted from this document"}
+              </p>
+            </div>
           </div>
+          <Button variant="outline" onClick={handleUploadAnother}>
+            Try Another File
+          </Button>
+        </div>
+      )}
 
-          {/* Error Display */}
-          {uploadResult.error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800 font-medium">Extraction Failed</p>
-              <p className="text-red-700 text-sm mt-1">{uploadResult.error}</p>
+      {/* Preview State - Show extracted data for confirmation */}
+      {uploadState === "preview" && uploadResult?.extractedData && (
+        <div className="bg-card rounded-lg shadow border border-border p-6 mb-6">
+          {saveError && (
+            <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <p className="text-destructive font-medium">Failed to Save</p>
+              <p className="text-destructive/80 text-sm mt-1">{saveError}</p>
             </div>
           )}
+          <ExtractedDataPreview
+            data={uploadResult.extractedData}
+            fileName={uploadResult.fileName}
+            fileUrl={uploadResult.fileUrl}
+            fileType={uploadResult.fileType}
+            onConfirm={handleConfirmSave}
+            onCancel={handleCancelPreview}
+          />
+        </div>
+      )}
 
-          {/* File Info */}
-          <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-500">File Name:</span>
-                <p className="font-medium">{uploadResult.fileName}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Type:</span>
-                <p className="font-medium">{uploadResult.fileType}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Items Extracted:</span>
-                <p className="font-medium">{uploadResult.itemsCount || 0}</p>
-              </div>
+      {/* Saving State */}
+      {uploadState === "saving" && (
+        <div className="bg-card rounded-lg shadow border border-border p-6 mb-6">
+          <div className="flex items-center justify-center gap-3 py-8">
+            <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <div>
+              <p className="font-medium text-foreground">Saving to database...</p>
+              <p className="text-sm text-muted-foreground">Please wait while we save your data</p>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* CSV Download */}
-          {uploadResult.csvUrl && (
-            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-800 font-medium">CSV File Ready</p>
-                  <p className="text-green-600 text-sm">
-                    {uploadResult.itemsCount} item(s) extracted successfully
-                  </p>
-                </div>
+      {/* Success State */}
+      {uploadState === "saved" && (
+        <div className="bg-card rounded-lg shadow border border-border p-6 mb-6">
+          <div className="text-center py-8">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success/10 mx-auto mb-4">
+              <svg className="h-8 w-8 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-semibold text-foreground mb-2">Successfully Saved!</h2>
+            <p className="text-muted-foreground mb-6">
+              {savedItemsCount} item{savedItemsCount !== 1 ? "s" : ""} have been added to your inventory
+            </p>
+
+            {uploadResult?.csvUrl && (
+              <div className="mb-6 p-4 bg-muted/50 rounded-lg inline-block">
                 <a
                   href={uploadResult.csvUrl}
                   download
-                  className="inline-flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                  className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-medium"
                 >
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  Download CSV
+                  Download CSV Copy
                 </a>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Preview Image */}
-          {uploadResult.fileType.startsWith("image/") && (
-            <div className="mt-4">
-              <p className="text-sm text-gray-500 mb-2">Uploaded Image:</p>
-              <img
-                src={uploadResult.fileUrl}
-                alt="Uploaded file"
-                className="max-w-md rounded-lg border border-gray-200"
-              />
+            <div className="flex items-center justify-center gap-3">
+              <Button variant="outline" onClick={handleUploadAnother}>
+                Upload Another File
+              </Button>
+              <Button asChild>
+                <a href="/inventory">View Inventory</a>
+              </Button>
             </div>
-          )}
-
-          {/* Extracted Data Preview */}
-          {uploadResult.extractedData && (
-            <div className="mt-4">
-              <details className="group">
-                <summary className="cursor-pointer text-sm font-medium text-blue-600 hover:text-blue-800">
-                  View Raw Extracted Data (JSON)
-                </summary>
-                <pre className="mt-2 p-4 bg-gray-900 text-green-400 rounded-lg overflow-auto text-xs max-h-96">
-                  {JSON.stringify(uploadResult.extractedData, null, 2)}
-                </pre>
-              </details>
-            </div>
-          )}
+          </div>
         </div>
       )}
 
-      {/* Instructions */}
-      <div className="bg-gray-50 rounded-lg p-6">
-        <h3 className="font-semibold text-gray-900 mb-3">How it works</h3>
-        <ol className="list-decimal list-inside space-y-2 text-gray-600 text-sm">
-          <li>Upload a PDF or image file (JPEG, PNG)</li>
-          <li>Gemini AI extracts data from the document</li>
-          <li>Download the extracted data as a CSV file</li>
-          <li>Review the data in Excel or Google Sheets</li>
-        </ol>
-      </div>
+      {/* Instructions - Show when idle */}
+      {uploadState === "idle" && (
+        <div className="bg-muted/50 rounded-lg p-6 border border-border">
+          <h3 className="font-semibold text-foreground mb-3">How it works</h3>
+          <ol className="list-decimal list-inside space-y-2 text-muted-foreground text-sm">
+            <li>Upload a PDF or image file (JPEG, PNG)</li>
+            <li>Data is automatically extracted from the document</li>
+            <li>Review the extracted data in a preview table</li>
+            <li>Click &quot;Confirm &amp; Save&quot; to add items to your inventory</li>
+          </ol>
+        </div>
+      )}
     </div>
   );
 }

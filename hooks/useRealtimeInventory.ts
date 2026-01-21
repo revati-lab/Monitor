@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { InventoryItem } from "@/drizzle/schema";
+import { SlabItem } from "@/drizzle/schema";
+
+type InventoryItem = SlabItem & { source?: 'consignment' | 'own_slabs' };
 
 interface SSEMessage {
   type: "connected" | "inventory_update" | "heartbeat" | "error";

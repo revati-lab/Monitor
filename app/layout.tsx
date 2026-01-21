@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Sidebar } from "@/components/sidebar";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Fabricator Inventory Management",
-  description: "AI-powered inventory tracking system for fabricators",
+  title: "Inventory Monitor",
+  description: "Smart inventory management and tracking",
 };
 
 export default function RootLayout({
@@ -13,50 +13,47 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased bg-gray-50">
-        <nav className="bg-white shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
-              <div className="flex">
-                <div className="flex-shrink-0 flex items-center">
-                  <Link href="/" className="text-xl font-bold text-gray-900">
-                    Fabricator Inventory
-                  </Link>
-                </div>
-                <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                  <Link
-                    href="/"
-                    className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                  >
-                    Dashboard
-                  </Link>
-                  <Link
-                    href="/upload"
-                    className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                  >
-                    Upload
-                  </Link>
-                  <Link
-                    href="/search"
-                    className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                  >
-                    Search
-                  </Link>
-                  <Link
-                    href="/inventory"
-                    className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                  >
-                    Inventory
-                  </Link>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="min-h-screen bg-background antialiased">
+        <div className="relative flex min-h-screen">
+          {/* Sidebar */}
+          <Sidebar />
+
+          {/* Main content area */}
+          <div className="flex-1 lg:pl-64">
+            {/* Top bar for mobile */}
+            <header className="sticky top-0 z-30 flex h-16 items-center border-b border-border/50 bg-background/80 backdrop-blur-xl px-4 lg:hidden">
+              <div className="ml-14 flex items-center gap-2">
+                <span className="text-lg font-semibold">Inventory Monitor</span>
+              </div>
+            </header>
+
+            {/* Page content */}
+            <main className="min-h-[calc(100vh-4rem)] lg:min-h-screen">
+              <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+                {children}
+              </div>
+            </main>
+
+            {/* Footer */}
+            <footer className="border-t border-border/50 bg-card/50">
+              <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
+                <div className="flex flex-col items-center justify-between gap-2 text-xs text-muted-foreground sm:flex-row">
+                  <p>Inventory Monitor</p>
+                  <p>Smart extraction for packing lists</p>
                 </div>
               </div>
-            </div>
+            </footer>
           </div>
-        </nav>
-        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          {children}
-        </main>
+        </div>
       </body>
     </html>
   );

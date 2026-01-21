@@ -1,11 +1,9 @@
-import { pgTable, uuid, varchar, decimal, timestamp, jsonb, integer, bigint } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, decimal, integer, timestamp } from "drizzle-orm/pg-core";
 
-export const inventoryItems = pgTable("inventory_items", {
+// Base columns shared by both consignment and own_slabs tables
+const baseSlabColumns = {
   id: uuid("id").primaryKey().defaultRandom(),
-  // Transfer/Receiving Worksheet fields
-  transferNumber: varchar("transfer_number", { length: 255 }),
-  transferDate: varchar("transfer_date", { length: 100 }),
-  // Vendor/Supplier information
+  // Vendor information
   vendorName: varchar("vendor_name", { length: 255 }),
   vendorAddress: varchar("vendor_address", { length: 500 }),
   vendorPhone: varchar("vendor_phone", { length: 100 }),
@@ -22,38 +20,47 @@ export const inventoryItems = pgTable("inventory_items", {
   freightCarrier: varchar("freight_carrier", { length: 255 }),
   weight: varchar("weight", { length: 100 }),
   // Item details
-  itemCode: varchar("item_code", { length: 255 }),
-  itemName: varchar("item_name", { length: 255 }),
-  description: varchar("description", { length: 500 }),
   serialNum: varchar("serial_num", { length: 255 }),
   barcode: varchar("barcode", { length: 255 }),
   bundle: varchar("bundle", { length: 100 }),
-  slabNumber: varchar("slab_number", { length: 100 }),
   block: varchar("block", { length: 255 }),
-  bin: varchar("bin", { length: 100 }),
-  quantity: varchar("quantity", { length: 255 }), // Changed to varchar to handle "1,135.65 SF (15 Slabs)"
+  slabNumber: varchar("slab_number", { length: 100 }),
+  slabName: varchar("slab_name", { length: 500 }),
+  quantity: varchar("quantity", { length: 255 }),
   quantitySf: decimal("quantity_sf", { precision: 10, scale: 2 }),
   quantitySlabs: integer("quantity_slabs"),
-  // Legacy fields for backward compatibility
-  invoiceNumber: varchar("invoice_number", { length: 255 }),
+  itemCode: varchar("item_code", { length: 255 }),
+  itemName: varchar("item_name", { length: 255 }),
+  bin: varchar("bin", { length: 100 }),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }),
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }),
-  uploadDate: timestamp("upload_date").defaultNow().notNull(),
+  // Source tracking
   sourceImageUrl: varchar("source_image_url", { length: 500 }),
-  extractedData: jsonb("extracted_data"),
+  createdAt: timestamp("created_at").defaultNow(),
+};
+
+// Consignment table - for items received on consignment (has transfer number)
+export const consignment = pgTable("consignment", {
+  ...baseSlabColumns,
+  // Transfer/Receiving Worksheet fields specific to consignment
+  transferNumber: varchar("transfer_number", { length: 255 }),
+  transferDate: varchar("transfer_date", { length: 100 }),
 });
 
-export const fileUploads = pgTable("file_uploads", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  fileName: varchar("file_name", { length: 255 }).notNull(),
-  fileUrl: varchar("file_url", { length: 500 }).notNull(),
-  fileType: varchar("file_type", { length: 100 }).notNull(),
-  fileSize: bigint("file_size", { mode: "number" }),
-  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
-  processed: timestamp("processed"),
+// Own Slabs table - for purchased/owned slabs (has invoice number)
+export const ownSlabs = pgTable("own_slabs", {
+  ...baseSlabColumns,
+  // Invoice fields specific to owned slabs
+  invoiceNumber: varchar("invoice_number", { length: 255 }),
+  invoiceDate: varchar("invoice_date", { length: 100 }),
+  purchaseDate: varchar("purchase_date", { length: 100 }),
 });
 
-export type InventoryItem = typeof inventoryItems.$inferSelect;
-export type NewInventoryItem = typeof inventoryItems.$inferInsert;
-export type FileUpload = typeof fileUploads.$inferSelect;
-export type NewFileUpload = typeof fileUploads.$inferInsert;
+// Type exports
+export type ConsignmentItem = typeof consignment.$inferSelect;
+export type NewConsignmentItem = typeof consignment.$inferInsert;
+export type OwnSlabItem = typeof ownSlabs.$inferSelect;
+export type NewOwnSlabItem = typeof ownSlabs.$inferInsert;
+
+// Combined type for UI display (union of both types)
+export type SlabItem = ConsignmentItem | OwnSlabItem;

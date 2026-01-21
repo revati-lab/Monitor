@@ -5,12 +5,14 @@ export async function GET() {
   try {
     const stats = await getInventoryStats();
     const vendors = await getAllVendors();
-    
+
     return NextResponse.json({
-      totalItems: stats.totalItems,
-      totalVendors: stats.uniqueVendors,
-      totalQuantitySf: Number(stats.totalQuantitySf) || 0,
-      totalQuantitySlabs: stats.totalQuantitySlabs || 0,
+      totalItems: stats.total.totalItems,
+      totalVendors: stats.total.uniqueVendors,
+      totalQuantitySf: Number(stats.total.totalQuantitySf) || 0,
+      totalQuantitySlabs: stats.total.totalQuantitySlabs || 0,
+      consignment: stats.consignment,
+      ownSlabs: stats.ownSlabs,
       vendors,
     });
   } catch (error) {

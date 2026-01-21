@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { inventoryItems, fileUploads } from "@/drizzle/schema";
+import { consignment, ownSlabs } from "@/drizzle/schema";
 import { extractInventoryData } from "@/lib/geminiExtraction";
-import { eq } from "drizzle-orm";
+import { determineTargetTable } from "@/types/inventory";
 import { join } from "path";
 import { unlink } from "fs/promises";
 import { existsSync } from "fs";
@@ -10,7 +10,7 @@ import { existsSync } from "fs";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fileName, fileUrl, fileType } = body;
+    const { fileName, fileUrl, fileType, extractedData: preExtractedData } = body;
 
     if (!fileName || !fileUrl) {
       return NextResponse.json(
@@ -22,33 +22,43 @@ export async function POST(request: NextRequest) {
     // Construct file path from fileUrl
     const filePath = join(process.cwd(), "public", fileUrl);
 
-    // Extract data using Gemini
-    const extractionResult = await extractInventoryData(filePath, fileType || "");
+    let extractedData;
 
-    // Check if extraction failed
-    if (!extractionResult.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: extractionResult.error,
-          errorCode: extractionResult.errorCode,
-          errorDetails: extractionResult.details,
-        },
-        { status: 422 }
-      );
+    // Use pre-extracted data if provided, otherwise extract from file
+    if (preExtractedData && preExtractedData.items && preExtractedData.items.length > 0) {
+      console.log("📋 Using pre-extracted data from client");
+      extractedData = preExtractedData;
+    } else {
+      // Extract data using Gemini
+      console.log("🔄 Extracting data from file...");
+      const extractionResult = await extractInventoryData(filePath, fileType || "");
+
+      // Check if extraction failed
+      if (!extractionResult.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: extractionResult.error,
+            errorCode: extractionResult.errorCode,
+            errorDetails: extractionResult.details,
+          },
+          { status: 422 }
+        );
+      }
+
+      extractedData = extractionResult.data;
     }
 
-    const extractedData = extractionResult.data;
+    // Determine which table to use based on extracted data
+    const targetTable = determineTargetTable(extractedData);
+    console.log(`📊 Target table: ${targetTable} (transferNumber: ${extractedData.transferNumber || 'none'}, invoiceNumber: ${extractedData.invoiceNumber || 'none'})`);
 
-    // Insert items into database
+    // Insert items into the appropriate database table
     const insertedItems = [];
     for (const item of extractedData.items) {
       try {
-        // Prepare values with all PDF fields
-        const values: any = {
-          // Transfer/Receiving Worksheet fields
-          transferNumber: extractedData.transferNumber,
-          transferDate: extractedData.transferDate,
+        // Base values shared by both tables
+        const baseValues: any = {
           // Vendor/Supplier information
           vendorName: extractedData.vendorName,
           vendorAddress: extractedData.vendorAddress,
@@ -68,7 +78,7 @@ export async function POST(request: NextRequest) {
           // Item details
           itemCode: item.itemCode,
           itemName: item.itemName,
-          description: item.description,
+          slabName: item.slabName,
           serialNum: item.serialNum,
           barcode: item.barcode,
           bundle: item.bundle,
@@ -78,25 +88,43 @@ export async function POST(request: NextRequest) {
           quantity: item.quantity,
           quantitySf: item.quantitySf !== undefined ? item.quantitySf.toString() : undefined,
           quantitySlabs: item.quantitySlabs,
-          // Legacy fields
-          invoiceNumber: extractedData.invoiceNumber,
           unitPrice: item.unitPrice !== undefined ? item.unitPrice.toString() : undefined,
           totalPrice: item.totalPrice !== undefined ? item.totalPrice.toString() : undefined,
           sourceImageUrl: fileUrl,
-          extractedData: extractedData as any,
         };
 
         // Remove undefined values to avoid database errors
-        Object.keys(values).forEach(key => {
-          if (values[key] === undefined) {
-            delete values[key];
+        Object.keys(baseValues).forEach(key => {
+          if (baseValues[key] === undefined) {
+            delete baseValues[key];
           }
         });
 
-        const [inserted] = await db
-          .insert(inventoryItems)
-          .values(values)
-          .returning();
+        let inserted;
+        if (targetTable === 'consignment') {
+          // Add consignment-specific fields
+          const consignmentValues = {
+            ...baseValues,
+            transferNumber: extractedData.transferNumber,
+            transferDate: extractedData.transferDate,
+          };
+          [inserted] = await db
+            .insert(consignment)
+            .values(consignmentValues)
+            .returning();
+        } else {
+          // Add own_slabs-specific fields
+          const ownSlabsValues = {
+            ...baseValues,
+            invoiceNumber: extractedData.invoiceNumber,
+            invoiceDate: extractedData.invoiceDate,
+            purchaseDate: extractedData.purchaseDate,
+          };
+          [inserted] = await db
+            .insert(ownSlabs)
+            .values(ownSlabsValues)
+            .returning();
+        }
 
         insertedItems.push(inserted);
       } catch (insertError: any) {
@@ -105,12 +133,6 @@ export async function POST(request: NextRequest) {
         // Continue with other items even if one fails
       }
     }
-
-    // Mark file upload as processed
-    await db
-      .update(fileUploads)
-      .set({ processed: new Date() })
-      .where(eq(fileUploads.fileUrl, fileUrl));
 
     // Clean up the uploaded file after successful processing
     if (insertedItems.length > 0) {
@@ -129,6 +151,7 @@ export async function POST(request: NextRequest) {
       success: true,
       items: insertedItems,
       extractedData,
+      targetTable,
     });
   } catch (error) {
     console.error("Process upload error:", error);

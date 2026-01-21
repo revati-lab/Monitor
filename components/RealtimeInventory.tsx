@@ -2,10 +2,10 @@
 
 import { useRealtimeInventory } from "@/hooks/useRealtimeInventory";
 import InventoryTable from "./InventoryTable";
-import { InventoryItem } from "@/drizzle/schema";
+import { SlabItem } from "@/drizzle/schema";
 
 interface RealtimeInventoryProps {
-  initialItems: InventoryItem[];
+  initialItems: (SlabItem & { source?: 'consignment' | 'own_slabs' })[];
 }
 
 export default function RealtimeInventory({
@@ -20,15 +20,15 @@ export default function RealtimeInventory({
         <div className="flex items-center gap-2">
           <div
             className={`w-2 h-2 rounded-full ${
-              isConnected ? "bg-green-500" : "bg-red-500"
+              isConnected ? "bg-success" : "bg-destructive"
             }`}
           />
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-muted-foreground">
             {isConnected ? "Live updates enabled" : "Connecting..."}
           </span>
         </div>
         {lastUpdate && (
-          <span className="text-sm text-gray-400">
+          <span className="text-sm text-muted-foreground/70">
             Last updated: {lastUpdate.toLocaleTimeString()}
           </span>
         )}
@@ -36,7 +36,7 @@ export default function RealtimeInventory({
 
       {/* Item count */}
       <div className="px-4 mb-2">
-        <span className="text-sm text-gray-600">{items.length} items</span>
+        <span className="text-sm text-muted-foreground">{items.length} items</span>
       </div>
 
       {/* Inventory table */}
