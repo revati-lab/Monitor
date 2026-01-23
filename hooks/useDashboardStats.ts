@@ -7,15 +7,18 @@ export interface DashboardStats {
   totalVendors: number;
   totalQuantitySf: number;
   totalQuantitySlabs: number;
+  brokenSlabs: number;
   consignment: {
     totalItems: number;
     totalQuantitySf: number;
     totalQuantitySlabs: number;
+    brokenSlabs: number;
   };
   ownSlabs: {
     totalItems: number;
     totalQuantitySf: number;
     totalQuantitySlabs: number;
+    brokenSlabs: number;
   };
 }
 
@@ -50,8 +53,9 @@ const defaultStats: DashboardStats = {
   totalVendors: 0,
   totalQuantitySf: 0,
   totalQuantitySlabs: 0,
-  consignment: { totalItems: 0, totalQuantitySf: 0, totalQuantitySlabs: 0 },
-  ownSlabs: { totalItems: 0, totalQuantitySf: 0, totalQuantitySlabs: 0 },
+  brokenSlabs: 0,
+  consignment: { totalItems: 0, totalQuantitySf: 0, totalQuantitySlabs: 0, brokenSlabs: 0 },
+  ownSlabs: { totalItems: 0, totalQuantitySf: 0, totalQuantitySlabs: 0, brokenSlabs: 0 },
 };
 
 const defaultData: DashboardData = {

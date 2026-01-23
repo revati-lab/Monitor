@@ -47,18 +47,21 @@ export function DashboardClient({
       totalQuantitySf: stats.totalQuantitySf,
       totalQuantitySlabs: stats.totalQuantitySlabs,
       totalVendors: stats.totalVendors,
+      brokenSlabs: stats.brokenSlabs,
     },
     consignment: {
       totalItems: stats.consignment.totalItems,
       totalQuantitySf: stats.consignment.totalQuantitySf,
       totalQuantitySlabs: stats.consignment.totalQuantitySlabs,
       totalVendors: stats.totalVendors,
+      brokenSlabs: stats.consignment.brokenSlabs,
     },
     own: {
       totalItems: stats.ownSlabs.totalItems,
       totalQuantitySf: stats.ownSlabs.totalQuantitySf,
       totalQuantitySlabs: stats.ownSlabs.totalQuantitySlabs,
       totalVendors: stats.totalVendors,
+      brokenSlabs: stats.ownSlabs.brokenSlabs,
     },
   }[activeView];
 
@@ -190,7 +193,26 @@ export function DashboardClient({
                 />
               </svg>
             }
-            description={displayStats.totalQuantitySlabs === 1 ? "slab" : "slabs total"}
+            description={
+              displayStats.brokenSlabs > 0
+                ? `${displayStats.totalQuantitySlabs} active`
+                : (displayStats.totalQuantitySlabs === 1 ? "slab" : "slabs total")
+            }
+            renderValue={(value) => (
+              <div className="flex items-baseline gap-3">
+                <span className="text-3xl font-bold tracking-tight text-foreground">
+                  {Number(value).toLocaleString()}
+                </span>
+                {displayStats.brokenSlabs > 0 && (
+                  <span className="inline-flex items-center gap-1 text-sm font-medium text-red-500">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                    {displayStats.brokenSlabs} broken
+                  </span>
+                )}
+              </div>
+            )}
           />
         </StatCardGrid>
       </section>

@@ -4,19 +4,65 @@ import { useState } from "react";
 import { SlabItem } from "@/drizzle/schema";
 import { cn } from "@/lib/utils";
 
-type InventoryItem = SlabItem & { source?: "consignment" | "own_slabs" };
+type InventoryItem = SlabItem & { source?: "consignment" | "own_slabs"; isBroken?: boolean };
 
 interface InventoryTableProps {
   items: InventoryItem[];
   activeTab?: string;
+  onBrokenChange?: (id: string, isBroken: boolean) => void;
 }
 
 export default function InventoryTable({
   items,
   activeTab = "all",
+  onBrokenChange,
 }: InventoryTableProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [brokenItems, setBrokenItems] = useState<Record<string, boolean>>(() => {
+    // Initialize with existing broken status from items
+    const initial: Record<string, boolean> = {};
+    items.forEach((item) => {
+      if (item.isBroken) {
+        initial[item.id] = true;
+      }
+    });
+    return initial;
+  });
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const selectedItem = items.find((item) => item.id === selectedId);
+
+  const isItemBroken = (item: InventoryItem) => {
+    return brokenItems[item.id] ?? item.isBroken ?? false;
+  };
+
+  const toggleBroken = async (item: InventoryItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (togglingId) return;
+
+    const newBrokenStatus = !isItemBroken(item);
+    setTogglingId(item.id);
+
+    try {
+      const response = await fetch("/api/inventory/broken", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: item.id,
+          type: item.source || "consignment",
+          isBroken: newBrokenStatus,
+        }),
+      });
+
+      if (response.ok) {
+        setBrokenItems((prev) => ({ ...prev, [item.id]: newBrokenStatus }));
+        onBrokenChange?.(item.id, newBrokenStatus);
+      }
+    } catch (error) {
+      console.error("Failed to toggle broken status:", error);
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -62,6 +108,7 @@ export default function InventoryTable({
         {items.map((item) => {
           const isConsignment = item.source === "consignment";
           const isSelected = selectedId === item.id;
+          const isBroken = isItemBroken(item);
 
           return (
             <div
@@ -69,16 +116,22 @@ export default function InventoryTable({
               onClick={() => setSelectedId(isSelected ? null : item.id)}
               className={cn(
                 "flex items-center gap-4 px-4 py-3 cursor-pointer transition-colors",
-                isSelected
-                  ? "bg-primary/5"
-                  : "hover:bg-muted/50"
+                isBroken
+                  ? "bg-red-100 dark:bg-red-950 border-l-2 border-red-500"
+                  : isSelected
+                    ? "bg-primary/5"
+                    : "hover:bg-muted/50"
               )}
             >
               {/* Color indicator */}
               <div
                 className={cn(
                   "w-1 h-10 rounded-full shrink-0",
-                  isConsignment ? "bg-blue-500" : "bg-emerald-500"
+                  isBroken
+                    ? "bg-red-500"
+                    : isConsignment
+                      ? "bg-blue-500"
+                      : "bg-emerald-500"
                 )}
               />
 
@@ -99,6 +152,35 @@ export default function InventoryTable({
                 <p className="font-semibold text-foreground">{item.quantity || "-"}</p>
                 <p className="text-xs text-muted-foreground">{getDate(item)}</p>
               </div>
+
+              {/* Broken Toggle Button */}
+              <button
+                onClick={(e) => toggleBroken(item, e)}
+                disabled={togglingId === item.id}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium shrink-0 transition-colors border",
+                  isBroken
+                    ? "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/50 hover:bg-red-500/30"
+                    : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
+                  togglingId === item.id && "opacity-50 cursor-not-allowed"
+                )}
+                title={isBroken ? "Mark as not broken" : "Mark as broken"}
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  {isBroken ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                  )}
+                </svg>
+                {isBroken ? "Broken" : "Mark Broken"}
+              </button>
 
               {/* Arrow */}
               <svg
@@ -160,6 +242,17 @@ export default function InventoryTable({
                 {selectedItem.source === "consignment" ? "Consignment" : "Transferred"}
               </span>
             </div>
+
+            {/* Broken Status */}
+            {isItemBroken(selectedItem) && (
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Status</p>
+                <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-sm font-medium bg-red-500/10 text-red-600 dark:text-red-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                  Broken
+                </span>
+              </div>
+            )}
 
             <div className="h-px bg-border/50" />
 

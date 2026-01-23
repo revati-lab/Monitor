@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, decimal, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, decimal, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 
 // Base columns shared by both consignment and own_slabs tables
 const baseSlabColumns = {
@@ -37,6 +37,8 @@ const baseSlabColumns = {
   // Source tracking
   sourceImageUrl: varchar("source_image_url", { length: 500 }),
   createdAt: timestamp("created_at").defaultNow(),
+  // Status tracking
+  isBroken: boolean("is_broken").default(false).notNull(),
 };
 
 // Consignment table - for items received on consignment (has transfer number)

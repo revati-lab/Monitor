@@ -45,6 +45,16 @@ export function useRealtimeInventory(
     }
   }, []);
 
+  // Update a single item in the local state
+  const updateItem = useCallback((id: string, updates: Partial<InventoryItem>) => {
+    setItems(prevItems =>
+      prevItems.map(item =>
+        item.id === id ? { ...item, ...updates } : item
+      )
+    );
+    setLastUpdate(new Date());
+  }, []);
+
   // Connect to SSE endpoint
   const connect = useCallback(() => {
     if (!enabled || eventSourceRef.current) return;
@@ -125,6 +135,7 @@ export function useRealtimeInventory(
     isConnected,
     lastUpdate,
     refetch,
+    updateItem,
     disconnect,
     reconnect: connect,
   };

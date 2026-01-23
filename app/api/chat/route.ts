@@ -43,6 +43,7 @@ VALID queries are about:
 - Specific stone types or materials
 - Inventory searches, lookups, or filters
 - Stock levels, availability
+- Broken slabs, damaged inventory
 - Greetings followed by inventory questions
 
 INVALID queries are about:
@@ -94,7 +95,7 @@ Please ask me something about your stone inventory, and I'll be happy to help!`;
       model: google("gemini-2.5-flash-lite"),
       prompt: `Extract query parameters from: "${userQuery}"
 
-Return ONLY valid JSON with optional fields: vendorName, invoiceNumber, transferNumber, itemName, itemCode, slabName, serialNum, block, minQuantity, maxQuantity.
+Return ONLY valid JSON with optional fields: vendorName, invoiceNumber, transferNumber, itemName, itemCode, slabName, serialNum, block, minQuantity, maxQuantity, isBroken.
 - transferNumber: transfer/order number (e.g., "15782", "TRF-001")
 - slabName: the type/name of slab or material (e.g., "Taj Mahal", "Calacatta", "White Marble")
 - vendorName: supplier or vendor company name
@@ -104,8 +105,9 @@ Return ONLY valid JSON with optional fields: vendorName, invoiceNumber, transfer
 - itemName: general item name
 - itemCode: item SKU or code
 - minQuantity/maxQuantity: numeric quantity filters
+- isBroken: boolean - set to true if asking about broken/damaged slabs, false if asking about non-broken/good/active slabs
 
-Example: {"transferNumber": "15782"} or {"slabName": "Taj Mahal"} or {"vendorName": "ABC", "minQuantity": 10}
+Example: {"transferNumber": "15782"} or {"slabName": "Taj Mahal"} or {"isBroken": true} or {"vendorName": "ABC", "isBroken": false}
 Return {} if no parameters found.`,
       maxOutputTokens: 150,
       temperature: 0.1,
@@ -178,7 +180,9 @@ Return {} if no parameters found.`,
         resultsContext += `- ${item.slabName || item.itemName || "Item"}`;
         if (item.serialNum) resultsContext += ` | Serial: ${item.serialNum}`;
         if (item.block) resultsContext += ` | Block: ${item.block}`;
-        resultsContext += ` | ${slabCount} slab(s), ${item.quantitySf || 0} SF\n`;
+        resultsContext += ` | ${slabCount} slab(s), ${item.quantitySf || 0} SF`;
+        if (item.isBroken) resultsContext += ` | STATUS: BROKEN`;
+        resultsContext += `\n`;
       });
 
       resultsContext += `\nTOTAL SUMMARY: ${totalSlabs} slabs, ${totalSf.toFixed(2)} square feet across ${Object.keys(slabGroups).length} slab types.`;
@@ -188,8 +192,8 @@ Return {} if no parameters found.`,
     const result = streamText({
       model: google("gemini-2.5-flash-lite"),
       system: `You are a helpful inventory assistant for a stone/slab business. Answer user questions about inventory based on the provided data.
-Key fields include: slabName (type of stone), vendorName (supplier), quantitySlabs (number of slabs), quantitySf (square feet), serialNum, block, bundle.
-Present information clearly and conversationally. When asked about quantities, always mention the total number of slabs and square feet if available.`,
+Key fields include: slabName (type of stone), vendorName (supplier), quantitySlabs (number of slabs), quantitySf (square feet), serialNum, block, bundle, isBroken (whether slab is damaged/broken).
+Present information clearly and conversationally. When asked about quantities, always mention the total number of slabs and square feet if available. When discussing broken slabs, clearly indicate which items are marked as broken/damaged.`,
       messages: [
         ...(messages.slice(0, -1) as ModelMessage[]),
         {

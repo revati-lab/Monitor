@@ -29,15 +29,18 @@ export async function GET() {
       totalVendors: dbStats.total.uniqueVendors,
       totalQuantitySf: Number(dbStats.total.totalQuantitySf) || 0,
       totalQuantitySlabs: dbStats.total.totalQuantitySlabs || 0,
+      brokenSlabs: dbStats.total.brokenSlabs || 0,
       consignment: {
         totalItems: dbStats.consignment.totalItems,
         totalQuantitySf: Number(dbStats.consignment.totalQuantitySf) || 0,
         totalQuantitySlabs: dbStats.consignment.totalQuantitySlabs || 0,
+        brokenSlabs: dbStats.consignment.brokenSlabs || 0,
       },
       ownSlabs: {
         totalItems: dbStats.ownSlabs.totalItems,
         totalQuantitySf: Number(dbStats.ownSlabs.totalQuantitySf) || 0,
         totalQuantitySlabs: dbStats.ownSlabs.totalQuantitySlabs || 0,
+        brokenSlabs: dbStats.ownSlabs.brokenSlabs || 0,
       },
     };
 

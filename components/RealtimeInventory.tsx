@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useRealtimeInventory } from "@/hooks/useRealtimeInventory";
 import InventoryTable from "./InventoryTable";
 import { SlabItem } from "@/drizzle/schema";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface RealtimeInventoryProps {
   initialItems: (SlabItem & { source?: "consignment" | "own_slabs" })[];
@@ -13,9 +14,17 @@ interface RealtimeInventoryProps {
 export default function RealtimeInventory({
   initialItems,
 }: RealtimeInventoryProps) {
-  const { items, isConnected, lastUpdate } = useRealtimeInventory(initialItems);
+  const router = useRouter();
+  const { items, isConnected, lastUpdate, updateItem } = useRealtimeInventory(initialItems);
   const [activeTab, setActiveTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Handle broken status change - update local state and refresh server data
+  const handleBrokenChange = useCallback((id: string, isBroken: boolean) => {
+    updateItem(id, { isBroken });
+    // Refresh the page data to ensure dashboard counts are updated on next visit
+    router.refresh();
+  }, [updateItem, router]);
 
   // Get unique vendor names (from consignment items)
   const vendorNames = useMemo(() => {
@@ -40,19 +49,24 @@ export default function RealtimeInventory({
   }, [items]);
 
   // Calculate counts
+  // "All" shows total items, other tabs exclude broken items
   const getCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: items.length };
+    const nonBrokenItems = items.filter((item) => !item.isBroken);
+    const counts: Record<string, number> = {
+      all: items.length,  // All includes everything
+      allActive: nonBrokenItems.length,  // For reference
+    };
 
-    // Count by vendor name
+    // Count by vendor name (excluding broken for meaningful count)
     vendorNames.forEach((name) => {
-      counts[`vendor:${name}`] = items.filter(
+      counts[`vendor:${name}`] = nonBrokenItems.filter(
         (item) => item.source === "consignment" && item.vendorName === name
       ).length;
     });
 
-    // Count by customer name
+    // Count by customer name (excluding broken for meaningful count)
     customerNames.forEach((name) => {
-      counts[`customer:${name}`] = items.filter(
+      counts[`customer:${name}`] = nonBrokenItems.filter(
         (item) => item.source === "own_slabs" && item.transferredTo === name
       ).length;
     });
@@ -247,7 +261,7 @@ export default function RealtimeInventory({
       )}
 
       {/* Compact Stats */}
-      <div className="flex items-center gap-4 px-4 text-sm">
+      <div className="flex items-center gap-4 px-4 text-sm flex-wrap">
         <span className="text-muted-foreground">
           Showing <span className="font-semibold text-foreground">{filteredItems.length}</span> items
         </span>
@@ -261,11 +275,20 @@ export default function RealtimeInventory({
             <span className="font-semibold text-emerald-600 dark:text-emerald-400">{customerNames.join(", ")}</span>
           </span>
         )}
+        {items.filter(i => i.isBroken).length > 0 && (
+          <span className="text-muted-foreground">
+            <span className="font-semibold text-red-600 dark:text-red-400">{items.filter(i => i.isBroken).length}</span> broken
+          </span>
+        )}
       </div>
 
       {/* Inventory table */}
       <div className="border-t border-border">
-        <InventoryTable items={filteredItems} activeTab={activeTab} />
+        <InventoryTable
+          items={filteredItems}
+          activeTab={activeTab}
+          onBrokenChange={handleBrokenChange}
+        />
       </div>
     </div>
   );

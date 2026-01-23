@@ -14,6 +14,7 @@ const statCardVariants = cva(
         gradient: "bg-gradient-to-br from-primary/5 via-transparent to-transparent",
         accent: "border-l-4 border-l-primary",
         elevated: "shadow-soft-lg",
+        destructive: "bg-gradient-to-br from-red-500/10 via-transparent to-transparent border-red-500/30",
       },
     },
     defaultVariants: {
@@ -64,7 +65,10 @@ const StatCard = React.forwardRef<HTMLDivElement, StatCardProps>(
         <div className="p-6">
           {/* Icon background decoration */}
           {icon && (
-            <div className="absolute -right-4 -top-4 h-24 w-24 text-primary/5 pointer-events-none">
+            <div className={cn(
+              "absolute -right-4 -top-4 h-24 w-24 pointer-events-none",
+              variant === "destructive" ? "text-red-500/5" : "text-primary/5"
+            )}>
               {icon}
             </div>
           )}
@@ -85,7 +89,12 @@ const StatCard = React.forwardRef<HTMLDivElement, StatCardProps>(
               )}
             </div>
             {icon && (
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary [&>svg]:h-5 [&>svg]:w-5">
+              <div className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-lg [&>svg]:h-5 [&>svg]:w-5",
+                variant === "destructive"
+                  ? "bg-red-500/10 text-red-500"
+                  : "bg-primary/10 text-primary"
+              )}>
                 {icon}
               </div>
             )}
