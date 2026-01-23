@@ -132,15 +132,15 @@ export function PieChartCard({
             </p>
           </div>
         ) : (
-          <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <RechartsPieChart>
+          <div className="h-[320px] w-full min-h-[320px] overflow-visible">
+            <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={200}>
+              <RechartsPieChart margin={{ top: 30, right: 20, bottom: 40, left: 20 }}>
                 <Pie
                   data={chartData}
                   cx="50%"
                   cy="45%"
-                  innerRadius={innerRadius}
-                  outerRadius={outerRadius}
+                  innerRadius={50}
+                  outerRadius={85}
                   paddingAngle={2}
                   dataKey="value"
                   animationBegin={0}
@@ -207,8 +207,8 @@ export function DonutChart({
   }
 
   return (
-    <div className={className} style={{ width: size, height: size }}>
-      <ResponsiveContainer width="100%" height="100%">
+    <div className={className} style={{ width: size, height: size, minWidth: size, minHeight: size }}>
+      <ResponsiveContainer width="100%" height="100%" minWidth={size} minHeight={size}>
         <RechartsPieChart>
           <Pie
             data={chartData}

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { streamText, ModelMessage } from "ai";
+import { streamText, generateText, ModelMessage } from "ai";
 import { google } from "@ai-sdk/google";
 import { queryInventory, QueryFilters } from "@/lib/queryHelpers";
 
@@ -8,9 +8,10 @@ import { queryInventory, QueryFilters } from "@/lib/queryHelpers";
  *
  * This is the best approach for this use case because it:
  * 1. Uses Vercel AI SDK's streamText for consistent API
- * 2. Extracts query parameters efficiently with a quick AI call
- * 3. Queries the database with type-safe filters
- * 4. Streams formatted responses for better UX
+ * 2. Validates queries are inventory-related before processing
+ * 3. Extracts query parameters efficiently with a quick AI call
+ * 4. Queries the database with type-safe filters
+ * 5. Streams formatted responses for better UX
  */
 export async function POST(request: NextRequest) {
   try {
@@ -25,6 +26,68 @@ export async function POST(request: NextRequest) {
     }
 
     const userQuery = lastMessage.content as string;
+
+    // Step 0: Validate that the query is about inventory data
+    const validationResult = await generateText({
+      model: google("gemini-2.5-flash-lite"),
+      prompt: `Classify if this user query is related to NATURAL STONE INVENTORY data.
+
+User query: "${userQuery}"
+
+VALID queries are about:
+- Stone/slab inventory (marble, granite, quartz, quartzite, onyx, travertine, etc.)
+- Vendors, suppliers, or where slabs came from
+- Invoice numbers, transfer numbers, order numbers
+- Quantities, square footage, slab counts
+- Serial numbers, block numbers, bundles
+- Specific stone types or materials
+- Inventory searches, lookups, or filters
+- Stock levels, availability
+- Greetings followed by inventory questions
+
+INVALID queries are about:
+- General knowledge (history, science, geography, etc.)
+- Weather, news, current events
+- Personal advice, opinions, recommendations unrelated to stone
+- Coding, programming, technical help
+- Other businesses or products not related to stone inventory
+- Jokes, stories, creative writing
+- Math problems unrelated to inventory
+
+Reply with ONLY "VALID" or "INVALID" - nothing else.`,
+      maxOutputTokens: 10,
+      temperature: 0,
+    });
+
+    const isValidQuery = validationResult.text.trim().toUpperCase().includes("VALID") &&
+                         !validationResult.text.trim().toUpperCase().includes("INVALID");
+
+    if (!isValidQuery) {
+      // Return a polite message asking user to focus on inventory
+      const responseText = `I'm specifically designed to help you search and query your natural stone inventory data.
+
+I can help you with questions like:
+• "Show me all Calacatta marble slabs"
+• "What do we have from vendor ABC?"
+• "Find slabs with transfer number 15782"
+• "How much Taj Mahal quartzite is in stock?"
+• "Show items with more than 100 SF"
+
+Please ask me something about your stone inventory, and I'll be happy to help!`;
+
+      // Return as a stream for consistent UX
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(responseText));
+          controller.close();
+        },
+      });
+
+      return new Response(stream, {
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
 
     // Step 1: Extract query parameters using a quick, focused AI call
     const extractionResult = await streamText({

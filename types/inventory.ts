@@ -55,7 +55,7 @@ export interface ExtractionResult {
   // Determines which table to use
   targetTable?: 'consignment' | 'own_slabs';
   error?: string;
-  errorCode?: 'API_KEY_MISSING' | 'API_ERROR' | 'FILE_UPLOAD_FAILED' | 'PARSE_ERROR' | 'UNSUPPORTED_FILE' | 'UNKNOWN';
+  errorCode?: 'API_KEY_MISSING' | 'API_ERROR' | 'FILE_UPLOAD_FAILED' | 'PARSE_ERROR' | 'UNSUPPORTED_FILE' | 'INVALID_CONTENT' | 'UNKNOWN';
   details?: string;
 }
 

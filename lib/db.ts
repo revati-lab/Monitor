@@ -5,20 +5,36 @@ import * as schema from "@/drizzle/schema";
 let pool: Pool | null = null;
 let dbInstance: ReturnType<typeof drizzle> | null = null;
 
-function getPool(): Pool {
+function createPool(): Pool {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL environment variable is not set");
   }
 
-  if (!pool) {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      connectionTimeoutMillis: 10000,
-      idleTimeoutMillis: 30000,
-      max: 10,
-    });
-  }
+  const newPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000,
+    max: 10,
+    // Keep connections alive
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
+  });
 
+  // Handle pool errors to prevent crashes
+  newPool.on("error", (err) => {
+    console.error("Unexpected database pool error:", err.message);
+    // Reset pool on error so next request creates a fresh connection
+    pool = null;
+    dbInstance = null;
+  });
+
+  return newPool;
+}
+
+function getPool(): Pool {
+  if (!pool) {
+    pool = createPool();
+  }
   return pool;
 }
 

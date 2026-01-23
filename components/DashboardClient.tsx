@@ -341,36 +341,20 @@ export function DashboardClient({
           }
         />
         {activeView === "all" && (
-          <>
-            <div className="grid gap-6 md:grid-cols-2">
-              <PieChartCard
-                data={slabsByItem}
-                title="All Slabs by Type"
-                description="Combined distribution across all inventory"
-                emptyMessage="No slab data available"
-              />
-              <PieChartCard
-                data={slabsByVendor}
-                title="Slabs by Vendor (Consignment)"
-                description="Distribution across consignment vendors"
-                emptyMessage="No vendor data available"
-              />
-            </div>
-            <div className="grid gap-6 md:grid-cols-2">
-              <PieChartCard
-                data={consignmentBySlabName}
-                title="Consignment by Type"
-                description="Distribution of consignment slabs by type"
-                emptyMessage="No consignment data"
-              />
-              <PieChartCard
-                data={ownSlabsBySlabName}
-                title={`${getOwnSlabsDisplayName()} Slabs by Type`}
-                description={`Distribution of ${getOwnSlabsDisplayName()} slabs by type`}
-                emptyMessage="No data"
-              />
-            </div>
-          </>
+          <div className="grid gap-6 md:grid-cols-2">
+            <PieChartCard
+              data={slabsByItem}
+              title="All Slabs by Type"
+              description="Combined distribution across all inventory"
+              emptyMessage="No slab data available"
+            />
+            <PieChartCard
+              data={slabsByVendor}
+              title="Slabs by Vendor (Consignment)"
+              description="Distribution across consignment vendors"
+              emptyMessage="No vendor data available"
+            />
+          </div>
         )}
         {activeView === "consignment" && (
           <div className="grid gap-6 md:grid-cols-2">

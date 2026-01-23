@@ -76,6 +76,8 @@ export default function FileUpload({ onUploadComplete, onUploadStart }: FileUplo
         return 'Failed to parse the extracted data. The document format may not be supported.';
       case 'UNSUPPORTED_FILE':
         return 'This file type is not supported. Please use PDF, JPEG, or PNG.';
+      case 'INVALID_CONTENT':
+        return 'This document does not contain natural stone materials data. Please upload a packing list, invoice, or inventory document for natural stone slabs (marble, granite, quartz, quartzite, etc.).';
       default:
         return 'An unexpected error occurred during extraction.';
     }

@@ -16,6 +16,12 @@ function getSsePool(): Pool {
       idleTimeoutMillis: 0, // Disable idle timeout for long-lived connections
       max: 5, // Limit SSE connections
     });
+
+    // Handle pool-level errors to prevent uncaught exceptions
+    ssePool.on("error", (err) => {
+      console.error("SSE pool error:", err);
+      // Don't throw - just log it
+    });
   }
 
   return ssePool;
@@ -35,10 +41,21 @@ export async function GET(request: Request) {
       const cleanup = async () => {
         if (client) {
           try {
-            await client.query("UNLISTEN inventory_changes");
-            client.release();
-          } catch {
-            // Ignore cleanup errors
+            // Try to unlisten - connection might already be closed, which is fine
+            await client.query("UNLISTEN inventory_changes").catch(() => {
+              // Ignore unlisten errors - connection might already be closed
+              // This is expected when connections are terminated unexpectedly
+            });
+          } catch (err) {
+            // Ignore cleanup errors - connection might already be closed
+            // This is expected when connections are terminated unexpectedly
+          } finally {
+            try {
+              client.release();
+            } catch (err) {
+              // Client might already be released or destroyed
+              // This is expected and safe to ignore
+            }
           }
         }
       };
@@ -46,14 +63,31 @@ export async function GET(request: Request) {
       // Handle client disconnect
       request.signal.addEventListener("abort", async () => {
         isControllerClosed = true;
-        await cleanup();
+        try {
+          await cleanup();
+        } catch (err) {
+          // Cleanup errors are expected and safe to ignore
+          console.debug("Cleanup error on abort (expected):", err);
+        }
       });
 
       try {
         client = await getSsePool().connect();
 
         // Subscribe to inventory changes channel
-        await client.query("LISTEN inventory_changes");
+        try {
+          await client.query("LISTEN inventory_changes");
+        } catch (listenErr) {
+          console.error("Failed to LISTEN on inventory_changes:", listenErr);
+          // Release the client if LISTEN fails
+          try {
+            client.release();
+          } catch {
+            // Ignore release errors
+          }
+          client = null;
+          throw listenErr;
+        }
 
         // Send initial connection success message
         controller.enqueue(
@@ -100,21 +134,47 @@ export async function GET(request: Request) {
           console.error("SSE client error:", err);
           clearInterval(heartbeatInterval);
           isControllerClosed = true;
-          await cleanup();
+          try {
+            await cleanup();
+          } catch (cleanupErr) {
+            // Cleanup errors are expected when connection is already broken
+            console.debug("Cleanup error in error handler (expected):", cleanupErr);
+          }
           try {
             controller.close();
           } catch {
             // Controller may already be closed
           }
         });
+
+        // Handle connection end events
+        client.on("end", () => {
+          console.debug("SSE client connection ended");
+          clearInterval(heartbeatInterval);
+          isControllerClosed = true;
+        });
       } catch (error) {
         console.error("SSE connection error:", error);
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({ type: "error", message: "Connection failed" })}\n\n`
-          )
-        );
-        controller.close();
+        try {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: "error", message: "Connection failed" })}\n\n`
+            )
+          );
+        } catch {
+          // Controller may already be closed
+        }
+        try {
+          await cleanup();
+        } catch (cleanupErr) {
+          // Cleanup errors are expected
+          console.debug("Cleanup error in catch block (expected):", cleanupErr);
+        }
+        try {
+          controller.close();
+        } catch {
+          // Controller may already be closed
+        }
       }
     },
   });

@@ -31,6 +31,14 @@ const InventoryItemSchema = z.object({
   totalPrice: z.number().nullable().describe("Total price (number only)"),
 });
 
+// Schema for document validation - checks if document contains natural stone data
+const ValidationSchema = z.object({
+  isNaturalStoneDocument: z.boolean().describe("True if the document contains natural stone materials data (marble, granite, quartz, quartzite, onyx, travertine, limestone, slate, sandstone, soapstone, or other natural stone slabs/tiles). Look for stone names, slab dimensions, SF measurements, bundle numbers, block numbers, or stone-related terminology."),
+  confidence: z.number().min(0).max(100).describe("Confidence level (0-100) that this is a natural stone inventory/packing/invoice document"),
+  documentType: z.string().nullable().describe("Type of document detected: 'packing_list', 'invoice', 'transfer_worksheet', 'inventory_list', 'quote', or 'unknown'"),
+  rejectionReason: z.string().nullable().describe("If not a natural stone document, explain what type of document it appears to be"),
+});
+
 const ExtractionSchema = z.object({
   // IMPORTANT: Only ONE of transferNumber or invoiceNumber should be populated
   transferNumber: z.string().nullable().describe("Transfer number ONLY - use this ONLY for consignment/transfer/receiving worksheet documents. Look for labels like 'Transfer #', 'Transfer Number', 'Receiving Worksheet'. Do NOT use for invoices."),
@@ -93,6 +101,23 @@ function nullToUndefined<T>(value: T | null): T | undefined {
 }
 
 /**
+ * Validation prompt - checks if document contains natural stone materials
+ */
+const VALIDATION_PROMPT = `Analyze this document and determine if it contains NATURAL STONE materials data.
+
+NATURAL STONE includes: marble, granite, quartz, quartzite, onyx, travertine, limestone, slate, sandstone, soapstone, porcelain slabs, sintered stone, or any other natural/engineered stone slabs or tiles.
+
+Look for indicators like:
+- Stone material names (e.g., "Calacatta", "Carrara", "White Marble", "Black Granite", "Quartzite")
+- Slab dimensions (e.g., '138" X 79"', '300cm x 150cm')
+- Square footage (SF) measurements
+- Bundle/block numbers
+- Serial numbers for slabs
+- Packing lists, invoices, or inventory lists mentioning stone products
+
+Return your analysis with confidence level.`;
+
+/**
  * Optimized extraction prompt - concise for faster processing
  */
 const EXTRACTION_PROMPT = `Extract ALL data from this document exactly as displayed.
@@ -110,6 +135,65 @@ RULES:
 - quantitySf/quantitySlabs: numeric values only
 
 Extract: transferNumber, transferDate, invoiceNumber, invoiceDate, purchaseDate, vendorName, vendorAddress, vendorPhone, vendorFax, transferredTo, destinationAddress, destinationPhone, destinationEmail, reqShipDate, deliveryMethod, shipmentTerms, freightCarrier, weight, and ALL items with their fields.`;
+
+/**
+ * Validate if document contains natural stone materials data
+ */
+async function validateNaturalStoneDocument(
+  base64Data: string,
+  mimeType: "application/pdf" | "image/png" | "image/jpeg"
+): Promise<{ isValid: boolean; reason?: string; documentType?: string }> {
+  const validationStart = perf.start();
+
+  try {
+    const provider = getGoogleProvider();
+
+    console.log(`🔍 Validating document content...`);
+
+    const { object: validation } = await generateObject({
+      model: provider("gemini-2.5-flash"),
+      schema: ValidationSchema,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: VALIDATION_PROMPT },
+            {
+              type: "file",
+              data: `data:${mimeType};base64,${base64Data}`,
+              mediaType: mimeType,
+            },
+          ],
+        },
+      ],
+    });
+
+    console.log(`✅ Validation complete in ${perf.end(validationStart)}:`, {
+      isNaturalStone: validation.isNaturalStoneDocument,
+      confidence: validation.confidence,
+      documentType: validation.documentType,
+    });
+
+    // Require high confidence (70%+) for natural stone documents
+    if (validation.isNaturalStoneDocument && validation.confidence >= 70) {
+      return {
+        isValid: true,
+        documentType: validation.documentType || undefined,
+      };
+    }
+
+    return {
+      isValid: false,
+      reason: validation.rejectionReason ||
+        `This document does not appear to contain natural stone materials data (confidence: ${validation.confidence}%). Please upload a packing list, invoice, or inventory document for natural stone slabs.`,
+      documentType: validation.documentType || undefined,
+    };
+  } catch (error: any) {
+    console.error(`❌ Validation error:`, error.message);
+    // On validation error, allow through but log it
+    return { isValid: true, reason: "Validation skipped due to error" };
+  }
+}
 
 /**
  * Extract inventory data using Gemini 2.0 Flash with Vercel AI SDK generateObject
@@ -157,6 +241,20 @@ export async function extractWithGemini(
       };
     }
 
+    // Step 1: Validate that document contains natural stone materials
+    const validation = await validateNaturalStoneDocument(base64Data, mimeType);
+    if (!validation.isValid) {
+      console.log(`❌ Document rejected: ${validation.reason}`);
+      return {
+        success: false,
+        data: { items: [] },
+        error: validation.reason || "This document does not contain natural stone materials data.",
+        errorCode: "INVALID_CONTENT",
+        details: `Document type detected: ${validation.documentType || "unknown"}. Only natural stone (marble, granite, quartz, quartzite, etc.) packing lists, invoices, and inventory documents are accepted.`,
+      };
+    }
+
+    console.log(`✅ Document validated as natural stone content`);
     console.log(`🚀 Calling Gemini 2.5 Flash (optimized for speed)...`);
     const apiStart = perf.start();
 
