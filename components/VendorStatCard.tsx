@@ -24,3 +24,4 @@ export function VendorStatCard({ value }: VendorStatCardProps) {
     />
   );
 }
+
