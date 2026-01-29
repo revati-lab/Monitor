@@ -59,24 +59,24 @@ export interface ExtractionResult {
   success: boolean;
   data: ExtractedInventoryData;
   // Determines which document type to use
-  documentType?: 'consignment' | 'own';
+  documentType?: 'transfer-consignment' | 'invoice-inhouse';
   error?: string;
   errorCode?: 'API_KEY_MISSING' | 'API_ERROR' | 'FILE_UPLOAD_FAILED' | 'PARSE_ERROR' | 'UNSUPPORTED_FILE' | 'INVALID_CONTENT' | 'UNKNOWN';
   details?: string;
 }
 
 // Helper to determine document type based on extracted data
-export function determineDocumentType(data: ExtractedInventoryData): 'consignment' | 'own' {
-  // If has transfer number, it's consignment
+export function determineDocumentType(data: ExtractedInventoryData): 'transfer-consignment' | 'invoice-inhouse' {
+  // If has transfer number, it's transfer-consignment
   if (data.transferNumber) {
-    return 'consignment';
+    return 'transfer-consignment';
   }
-  // If has invoice number, it's own
+  // If has invoice number, it's invoice-inhouse
   if (data.invoiceNumber) {
-    return 'own';
+    return 'invoice-inhouse';
   }
-  // Default to consignment if unclear
-  return 'consignment';
+  // Default to transfer-consignment if unclear
+  return 'transfer-consignment';
 }
 
 // Legacy function alias for backward compatibility

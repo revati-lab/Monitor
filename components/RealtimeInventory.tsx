@@ -37,7 +37,7 @@ export default function RealtimeInventory({
     return Array.from(names).sort();
   }, [items]);
 
-  // Get unique transferredTo names (from own_slabs items)
+  // Get unique transferredTo names (from InHouse items)
   const customerNames = useMemo(() => {
     const names = new Set<string>();
     items
@@ -106,7 +106,7 @@ export default function RealtimeInventory({
       );
     }
 
-    // Sort: consignment first (alphabetically), then own_slabs (alphabetically)
+    // Sort: consignment first (alphabetically), then InHouse (alphabetically)
     return [...result].sort((a, b) => {
       // First sort by source type (consignment first)
       if (a.source !== b.source) {

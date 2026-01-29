@@ -239,7 +239,7 @@ export default function InventoryTable({
                     selectedItem.source === "consignment" ? "bg-blue-500" : "bg-emerald-500"
                   )}
                 />
-                {selectedItem.source === "consignment" ? "Consignment" : "Transferred"}
+                {selectedItem.source === "consignment" ? "Consignment" : "InHouse"}
               </span>
             </div>
 

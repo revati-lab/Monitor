@@ -17,7 +17,7 @@ async function getInventoryItems(userId: string) {
     // Map documentType to source for backward compatibility with UI components
     const combined = items.map((item) => ({
       ...item,
-      source: item.documentType === "consignment" ? "consignment" as const : "own_slabs" as const,
+      source: item.documentType === "transfer-consignment" ? "consignment" as const : "own_slabs" as const,
     }));
 
     return combined;

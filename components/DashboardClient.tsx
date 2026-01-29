@@ -32,12 +32,12 @@ export function DashboardClient({
 
   const { stats, slabsByItem, slabsByVendor, consignmentBySlabName, ownSlabsBySlabName, customerNames } = data;
 
-  // Get display name for own slabs section
-  const getOwnSlabsDisplayName = () => {
+  // Get display name for InHouse slabs section
+  const getInHouseDisplayName = () => {
     if (customerNames && customerNames.length > 0) {
       return customerNames.join(", ");
     }
-    return "Transferred";
+    return "InHouse";
   };
 
   // Get stats based on active view
@@ -68,7 +68,7 @@ export function DashboardClient({
   const viewTabs = [
     { id: "all" as const, label: "All Inventory", color: "bg-primary" },
     { id: "consignment" as const, label: "Consignment", color: "bg-blue-500" },
-    { id: "own" as const, label: getOwnSlabsDisplayName(), color: "bg-emerald-500" },
+    { id: "own" as const, label: getInHouseDisplayName(), color: "bg-emerald-500" },
   ];
 
   return (
@@ -217,12 +217,12 @@ export function DashboardClient({
         </StatCardGrid>
       </section>
 
-      {/* Consignment vs Transferred Breakdown - Only show in "all" view */}
+      {/* Consignment vs InHouse Breakdown - Only show in "all" view */}
       {activeView === "all" && (
         <section className="space-y-4">
           <SectionHeader
             title="Inventory Breakdown"
-            description="Comparison between consignment and transferred items"
+            description="Comparison between consignment and InHouse items"
           />
           <div className="grid gap-6 md:grid-cols-2">
             {/* Consignment Stats */}
@@ -286,7 +286,7 @@ export function DashboardClient({
               </div>
             </Card>
 
-            {/* Transferred Stats */}
+            {/* InHouse Stats */}
             <Card
               className="p-6 cursor-pointer transition-all hover:ring-2 hover:ring-emerald-500/50"
               onClick={() => setActiveView("own")}
@@ -310,7 +310,7 @@ export function DashboardClient({
                 <div className="flex-1">
                   <h3 className="font-semibold text-foreground">{getOwnSlabsDisplayName()}</h3>
                   <p className="text-xs text-muted-foreground">
-                    Transferred inventory
+                    InHouse inventory
                   </p>
                 </div>
                 <svg

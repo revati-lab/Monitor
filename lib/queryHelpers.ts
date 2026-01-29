@@ -19,7 +19,7 @@ export interface QueryFilters {
 
 // Query consignment items from sales table
 export async function queryConsignment(filters: QueryFilters = {}) {
-  const conditions = [eq(sales.documentType, "consignment")];
+  const conditions = [eq(sales.documentType, "transfer-consignment")];
 
   if (filters.userId) {
     conditions.push(eq(sales.userId, filters.userId));
@@ -62,7 +62,7 @@ export async function queryConsignment(filters: QueryFilters = {}) {
 
 // Query own slabs items from sales table
 export async function queryOwnSlabs(filters: QueryFilters = {}) {
-  const conditions = [eq(sales.documentType, "own")];
+  const conditions = [eq(sales.documentType, "invoice-inhouse")];
 
   if (filters.userId) {
     conditions.push(eq(sales.userId, filters.userId));
@@ -120,7 +120,7 @@ export async function queryAllInventory(filters: QueryFilters = {}) {
 
 // Get consignment stats (totalItems includes all, slab counts exclude broken)
 export async function getConsignmentStats(userId?: string) {
-  const baseConditions = [eq(sales.documentType, "consignment")];
+  const baseConditions = [eq(sales.documentType, "transfer-consignment")];
   if (userId) baseConditions.push(eq(sales.userId, userId));
 
   // Get total items count (including broken)
@@ -160,7 +160,7 @@ export async function getConsignmentStats(userId?: string) {
 
 // Get own slabs stats (totalItems includes all, slab counts exclude broken)
 export async function getOwnSlabsStats(userId?: string) {
-  const baseConditions = [eq(sales.documentType, "own")];
+  const baseConditions = [eq(sales.documentType, "invoice-inhouse")];
   if (userId) baseConditions.push(eq(sales.userId, userId));
 
   // Get total items count (including broken)
@@ -220,7 +220,7 @@ export async function getInventoryStats(userId?: string) {
 
 // Get consignment slabs by slab name (excludes broken slabs)
 export async function getConsignmentBySlabName(userId?: string) {
-  const conditions = [eq(sales.documentType, "consignment"), eq(sales.isBroken, false)];
+  const conditions = [eq(sales.documentType, "transfer-consignment"), eq(sales.isBroken, false)];
   if (userId) conditions.push(eq(sales.userId, userId));
 
   const result = await db
@@ -239,7 +239,7 @@ export async function getConsignmentBySlabName(userId?: string) {
 
 // Get own slabs by slab name (excludes broken slabs)
 export async function getOwnSlabsBySlabName(userId?: string) {
-  const conditions = [eq(sales.documentType, "own"), eq(sales.isBroken, false)];
+  const conditions = [eq(sales.documentType, "invoice-inhouse"), eq(sales.isBroken, false)];
   if (userId) conditions.push(eq(sales.userId, userId));
 
   const result = await db
@@ -258,7 +258,7 @@ export async function getOwnSlabsBySlabName(userId?: string) {
 
 // Get consignment slabs by vendor (excludes broken slabs)
 export async function getConsignmentByVendor(userId?: string) {
-  const conditions = [eq(sales.documentType, "consignment"), eq(sales.isBroken, false)];
+  const conditions = [eq(sales.documentType, "transfer-consignment"), eq(sales.isBroken, false)];
   if (userId) conditions.push(eq(sales.userId, userId));
 
   const result = await db
@@ -277,7 +277,7 @@ export async function getConsignmentByVendor(userId?: string) {
 
 // Get own slabs by vendor (excludes broken slabs)
 export async function getOwnSlabsByVendor(userId?: string) {
-  const conditions = [eq(sales.documentType, "own"), eq(sales.isBroken, false)];
+  const conditions = [eq(sales.documentType, "invoice-inhouse"), eq(sales.isBroken, false)];
   if (userId) conditions.push(eq(sales.userId, userId));
 
   const result = await db
@@ -331,7 +331,7 @@ export async function getSlabsByVendor(userId?: string) {
 
 // Get unique customer names (transferredTo) from own slabs
 export async function getCustomerNames(userId?: string): Promise<string[]> {
-  const conditions = [eq(sales.documentType, "own")];
+  const conditions = [eq(sales.documentType, "invoice-inhouse")];
   if (userId) conditions.push(eq(sales.userId, userId));
 
   const result = await db
@@ -371,7 +371,7 @@ export interface VendorDetails {
 }
 
 export async function getVendorDetails(userId?: string): Promise<VendorDetails[]> {
-  const conditions = [eq(sales.documentType, "consignment"), eq(sales.isBroken, false)];
+  const conditions = [eq(sales.documentType, "transfer-consignment"), eq(sales.isBroken, false)];
   if (userId) conditions.push(eq(sales.userId, userId));
 
   // Get vendor info from consignment only (excludes broken slabs)
