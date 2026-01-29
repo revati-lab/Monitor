@@ -123,14 +123,14 @@ export function DashboardClient({
               ? "Total Inventory"
               : activeView === "consignment"
               ? "Consignment Inventory"
-              : `${getOwnSlabsDisplayName()} Inventory`
+              : `${getInHouseDisplayName()} Inventory`
           }
           description={
             activeView === "all"
               ? "Combined stats from all sources"
               : activeView === "consignment"
               ? "Items received on consignment"
-              : `Inventory for ${getOwnSlabsDisplayName()}`
+              : `Inventory for ${getInHouseDisplayName()}`
           }
         />
         <StatCardGrid>
@@ -308,7 +308,7 @@ export function DashboardClient({
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-foreground">{getOwnSlabsDisplayName()}</h3>
+                  <h3 className="font-semibold text-foreground">{getInHouseDisplayName()}</h3>
                   <p className="text-xs text-muted-foreground">
                     InHouse inventory
                   </p>
@@ -359,7 +359,7 @@ export function DashboardClient({
               ? "Visual breakdown of your slab inventory"
               : activeView === "consignment"
               ? "Distribution of consignment slabs"
-              : `Distribution of ${getOwnSlabsDisplayName()} slabs`
+              : `Distribution of ${getInHouseDisplayName()} slabs`
           }
         />
         {activeView === "all" && (
@@ -398,13 +398,13 @@ export function DashboardClient({
           <div className="grid gap-6 md:grid-cols-2">
             <PieChartCard
               data={ownSlabsBySlabName}
-              title={`${getOwnSlabsDisplayName()} Slabs by Type`}
-              description={`Distribution of ${getOwnSlabsDisplayName()} slabs by type`}
+              title={`${getInHouseDisplayName()} Slabs by Type`}
+              description={`Distribution of ${getInHouseDisplayName()} slabs by type`}
               emptyMessage="No data"
             />
             <PieChartCard
               data={slabsByVendor}
-              title={`${getOwnSlabsDisplayName()} by Vendor`}
+              title={`${getInHouseDisplayName()} by Vendor`}
               description="Distribution across vendors"
               emptyMessage="No vendor data available"
             />
