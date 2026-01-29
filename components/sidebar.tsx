@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs"
 import { cn } from "@/lib/utils"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { Button } from "@/components/ui/button"
@@ -301,11 +302,83 @@ export function Sidebar({ className }: SidebarProps) {
           })}
         </div>
 
-        {/* Footer with theme toggle and status */}
+        {/* Footer with user auth, theme toggle and status */}
         <div className={cn(
           "border-t border-border/50 p-3",
           collapsed ? "flex flex-col items-center gap-2" : "space-y-3"
         )}>
+          {/* User Authentication Section */}
+          <div className={cn(
+            "flex items-center",
+            collapsed ? "justify-center" : "gap-3 px-3"
+          )}>
+            <SignedIn>
+              {!collapsed ? (
+                <div className="flex items-center gap-3 rounded-lg bg-accent/50 px-3 py-2 w-full">
+                  <UserButton
+                    appearance={{
+                      elements: {
+                        avatarBox: "h-8 w-8",
+                        userButtonPopoverCard: "shadow-xl",
+                      },
+                    }}
+                    afterSignOutUrl="/sign-in"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-foreground truncate">
+                      Account
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Manage profile
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <UserButton
+                  appearance={{
+                    elements: {
+                      avatarBox: "h-8 w-8",
+                      userButtonPopoverCard: "shadow-xl",
+                    },
+                  }}
+                  afterSignOutUrl="/sign-in"
+                />
+              )}
+            </SignedIn>
+            
+            <SignedOut>
+              {!collapsed ? (
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start gap-2"
+                  asChild
+                >
+                  <SignInButton mode="redirect">
+                    <div className="flex items-center gap-2">
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                      </svg>
+                      <span>Sign In</span>
+                    </div>
+                  </SignInButton>
+                </Button>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  className="h-8 w-8"
+                  asChild
+                >
+                  <SignInButton mode="redirect">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                    </svg>
+                  </SignInButton>
+                </Button>
+              )}
+            </SignedOut>
+          </div>
+
           {/* Theme toggle */}
           <div className={cn(
             "flex items-center",

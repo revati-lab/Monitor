@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SlabItem } from "@/drizzle/schema";
+import { SlabItem } from "@/types/inventory";
 import { cn } from "@/lib/utils";
 
 type InventoryItem = SlabItem & { source?: "consignment" | "own_slabs"; isBroken?: boolean };

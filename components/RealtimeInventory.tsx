@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useRealtimeInventory } from "@/hooks/useRealtimeInventory";
 import InventoryTable from "./InventoryTable";
-import { SlabItem } from "@/drizzle/schema";
+import { SlabItem } from "@/types/inventory";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 

@@ -1,24 +1,24 @@
+import { auth } from "@clerk/nextjs/server";
+import { eq } from "drizzle-orm";
 import RealtimeInventory from "@/components/RealtimeInventory";
 import { PageHeader } from "@/components/ui/section-header";
 import { db } from "@/lib/db";
-import { consignment, ownSlabs } from "@/drizzle/schema";
+import { sales } from "@/drizzle/schema";
 
-async function getInventoryItems() {
+async function getInventoryItems(userId: string) {
   try {
-    // Fetch from both tables and combine
-    const [consignmentItems, ownSlabItems] = await Promise.all([
-      db.select().from(consignment).limit(50),
-      db.select().from(ownSlabs).limit(50),
-    ]);
+    // Fetch from sales table filtered by user and map documentType to source
+    const items = await db
+      .select()
+      .from(sales)
+      .where(eq(sales.userId, userId))
+      .limit(100);
 
-    // Add source indicator and combine
-    const combined = [
-      ...consignmentItems.map((item) => ({
-        ...item,
-        source: "consignment" as const,
-      })),
-      ...ownSlabItems.map((item) => ({ ...item, source: "own_slabs" as const })),
-    ];
+    // Map documentType to source for backward compatibility with UI components
+    const combined = items.map((item) => ({
+      ...item,
+      source: item.documentType === "consignment" ? "consignment" as const : "own_slabs" as const,
+    }));
 
     return combined;
   } catch (error) {
@@ -28,7 +28,20 @@ async function getInventoryItems() {
 }
 
 export default async function InventoryPage() {
-  const items = await getInventoryItems();
+  const { userId } = await auth();
+
+  if (!userId) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Inventory"
+          description="Please sign in to view your inventory"
+        />
+      </div>
+    );
+  }
+
+  const items = await getInventoryItems(userId);
 
   return (
     <div className="space-y-6">

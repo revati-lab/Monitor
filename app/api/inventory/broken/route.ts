@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { consignment, ownSlabs } from "@/drizzle/schema";
+import { sales } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
 
 interface ToggleBrokenRequest {
@@ -28,17 +28,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (type === "consignment") {
-      await db
-        .update(consignment)
-        .set({ isBroken })
-        .where(eq(consignment.id, id));
-    } else {
-      await db
-        .update(ownSlabs)
-        .set({ isBroken })
-        .where(eq(ownSlabs.id, id));
-    }
+    // Update the sales table - the type is used for validation but all records are in one table now
+    await db
+      .update(sales)
+      .set({ isBroken })
+      .where(eq(sales.id, id));
 
     return NextResponse.json({ success: true, id, type, isBroken });
   } catch (error) {

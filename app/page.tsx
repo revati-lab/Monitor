@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import {
   getInventoryStats,
   getSlabsBySlabName,
@@ -11,6 +12,7 @@ import { DashboardClient } from "@/components/DashboardClient";
 import { DashboardData } from "@/hooks/useDashboardStats";
 
 export default async function HomePage() {
+  const { userId } = await auth();
   let initialData: DashboardData = {
     stats: {
       totalItems: 0,
@@ -32,13 +34,13 @@ export default async function HomePage() {
   try {
     const [dbStats, slabData, vendorData, consignmentSlabs, ownSlabs, vendors, customerNames] =
       await Promise.all([
-        getInventoryStats(),
-        getSlabsBySlabName(),
-        getSlabsByVendor(),
-        getConsignmentBySlabName(),
-        getOwnSlabsBySlabName(),
-        getVendorDetails(),
-        getCustomerNames(),
+        getInventoryStats(userId || undefined),
+        getSlabsBySlabName(userId || undefined),
+        getSlabsByVendor(userId || undefined),
+        getConsignmentBySlabName(userId || undefined),
+        getOwnSlabsBySlabName(userId || undefined),
+        getVendorDetails(userId || undefined),
+        getCustomerNames(userId || undefined),
       ]);
 
     initialData = {

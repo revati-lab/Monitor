@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
-import { consignment, ownSlabs } from "@/drizzle/schema";
+import { sales } from "@/drizzle/schema";
 import { ilike, and, sql, desc, eq } from "drizzle-orm";
 
 export interface QueryFilters {
+  userId?: string;
   vendorName?: string;
   invoiceNumber?: string;
   transferNumber?: string;
@@ -16,90 +17,90 @@ export interface QueryFilters {
   isBroken?: boolean;
 }
 
-// Query consignment table
+// Query consignment items from sales table
 export async function queryConsignment(filters: QueryFilters = {}) {
-  const conditions = [];
+  const conditions = [eq(sales.documentType, "consignment")];
+
+  if (filters.userId) {
+    conditions.push(eq(sales.userId, filters.userId));
+  }
 
   if (filters.vendorName) {
-    conditions.push(ilike(consignment.vendorName, `%${filters.vendorName}%`));
+    conditions.push(ilike(sales.vendorName, `%${filters.vendorName}%`));
   }
 
   if (filters.transferNumber) {
-    conditions.push(ilike(consignment.transferNumber, `%${filters.transferNumber}%`));
+    conditions.push(ilike(sales.transferNumber, `%${filters.transferNumber}%`));
   }
 
   if (filters.serialNum) {
-    conditions.push(ilike(consignment.serialNum, `%${filters.serialNum}%`));
+    conditions.push(ilike(sales.serialNum, `%${filters.serialNum}%`));
   }
 
   if (filters.block) {
-    conditions.push(ilike(consignment.block, `%${filters.block}%`));
+    conditions.push(ilike(sales.block, `%${filters.block}%`));
   }
 
   if (filters.itemName) {
-    conditions.push(ilike(consignment.itemName, `%${filters.itemName}%`));
+    conditions.push(ilike(sales.itemName, `%${filters.itemName}%`));
   }
 
   if (filters.itemCode) {
-    conditions.push(ilike(consignment.itemCode, `%${filters.itemCode}%`));
+    conditions.push(ilike(sales.itemCode, `%${filters.itemCode}%`));
   }
 
   if (filters.slabName) {
-    conditions.push(ilike(consignment.slabName, `%${filters.slabName}%`));
+    conditions.push(ilike(sales.slabName, `%${filters.slabName}%`));
   }
 
   if (filters.isBroken !== undefined) {
-    conditions.push(eq(consignment.isBroken, filters.isBroken));
+    conditions.push(eq(sales.isBroken, filters.isBroken));
   }
 
-  if (conditions.length > 0) {
-    return await db.select().from(consignment).where(and(...conditions));
-  }
-
-  return await db.select().from(consignment);
+  return await db.select().from(sales).where(and(...conditions));
 }
 
-// Query own slabs table
+// Query own slabs items from sales table
 export async function queryOwnSlabs(filters: QueryFilters = {}) {
-  const conditions = [];
+  const conditions = [eq(sales.documentType, "own")];
+
+  if (filters.userId) {
+    conditions.push(eq(sales.userId, filters.userId));
+  }
 
   if (filters.vendorName) {
-    conditions.push(ilike(ownSlabs.vendorName, `%${filters.vendorName}%`));
+    conditions.push(ilike(sales.vendorName, `%${filters.vendorName}%`));
   }
 
   if (filters.invoiceNumber) {
-    conditions.push(ilike(ownSlabs.invoiceNumber, `%${filters.invoiceNumber}%`));
+    conditions.push(ilike(sales.invoiceNumber, `%${filters.invoiceNumber}%`));
   }
 
   if (filters.serialNum) {
-    conditions.push(ilike(ownSlabs.serialNum, `%${filters.serialNum}%`));
+    conditions.push(ilike(sales.serialNum, `%${filters.serialNum}%`));
   }
 
   if (filters.block) {
-    conditions.push(ilike(ownSlabs.block, `%${filters.block}%`));
+    conditions.push(ilike(sales.block, `%${filters.block}%`));
   }
 
   if (filters.itemName) {
-    conditions.push(ilike(ownSlabs.itemName, `%${filters.itemName}%`));
+    conditions.push(ilike(sales.itemName, `%${filters.itemName}%`));
   }
 
   if (filters.itemCode) {
-    conditions.push(ilike(ownSlabs.itemCode, `%${filters.itemCode}%`));
+    conditions.push(ilike(sales.itemCode, `%${filters.itemCode}%`));
   }
 
   if (filters.slabName) {
-    conditions.push(ilike(ownSlabs.slabName, `%${filters.slabName}%`));
+    conditions.push(ilike(sales.slabName, `%${filters.slabName}%`));
   }
 
   if (filters.isBroken !== undefined) {
-    conditions.push(eq(ownSlabs.isBroken, filters.isBroken));
+    conditions.push(eq(sales.isBroken, filters.isBroken));
   }
 
-  if (conditions.length > 0) {
-    return await db.select().from(ownSlabs).where(and(...conditions));
-  }
-
-  return await db.select().from(ownSlabs);
+  return await db.select().from(sales).where(and(...conditions));
 }
 
 // Query both tables and combine results
@@ -118,31 +119,35 @@ export async function queryAllInventory(filters: QueryFilters = {}) {
 }
 
 // Get consignment stats (totalItems includes all, slab counts exclude broken)
-export async function getConsignmentStats() {
+export async function getConsignmentStats(userId?: string) {
+  const baseConditions = [eq(sales.documentType, "consignment")];
+  if (userId) baseConditions.push(eq(sales.userId, userId));
+
   // Get total items count (including broken)
   const totalResult = await db
     .select({
       totalItems: sql<number>`count(*)::int`,
-      uniqueVendors: sql<number>`count(distinct ${consignment.vendorName})::int`,
+      uniqueVendors: sql<number>`count(distinct ${sales.vendorName})::int`,
     })
-    .from(consignment);
+    .from(sales)
+    .where(and(...baseConditions));
 
   // Get slab counts (excluding broken)
   const activeResult = await db
     .select({
-      totalQuantitySf: sql<number>`coalesce(sum(${consignment.quantitySf}), 0)::numeric`,
-      totalQuantitySlabs: sql<number>`coalesce(sum(coalesce(nullif(${consignment.quantitySlabs}, 0), 1)), 0)::int`,
+      totalQuantitySf: sql<number>`coalesce(sum(${sales.quantitySf}), 0)::numeric`,
+      totalQuantitySlabs: sql<number>`coalesce(sum(coalesce(nullif(${sales.quantitySlabs}, 0), 1)), 0)::int`,
     })
-    .from(consignment)
-    .where(eq(consignment.isBroken, false));
+    .from(sales)
+    .where(and(...baseConditions, eq(sales.isBroken, false)));
 
   // Get broken slab counts
   const brokenResult = await db
     .select({
-      brokenSlabs: sql<number>`coalesce(sum(coalesce(nullif(${consignment.quantitySlabs}, 0), 1)), 0)::int`,
+      brokenSlabs: sql<number>`coalesce(sum(coalesce(nullif(${sales.quantitySlabs}, 0), 1)), 0)::int`,
     })
-    .from(consignment)
-    .where(eq(consignment.isBroken, true));
+    .from(sales)
+    .where(and(...baseConditions, eq(sales.isBroken, true)));
 
   return {
     totalItems: totalResult[0]?.totalItems || 0,
@@ -154,31 +159,35 @@ export async function getConsignmentStats() {
 }
 
 // Get own slabs stats (totalItems includes all, slab counts exclude broken)
-export async function getOwnSlabsStats() {
+export async function getOwnSlabsStats(userId?: string) {
+  const baseConditions = [eq(sales.documentType, "own")];
+  if (userId) baseConditions.push(eq(sales.userId, userId));
+
   // Get total items count (including broken)
   const totalResult = await db
     .select({
       totalItems: sql<number>`count(*)::int`,
-      uniqueVendors: sql<number>`count(distinct ${ownSlabs.vendorName})::int`,
+      uniqueVendors: sql<number>`count(distinct ${sales.vendorName})::int`,
     })
-    .from(ownSlabs);
+    .from(sales)
+    .where(and(...baseConditions));
 
   // Get slab counts (excluding broken)
   const activeResult = await db
     .select({
-      totalQuantitySf: sql<number>`coalesce(sum(${ownSlabs.quantitySf}), 0)::numeric`,
-      totalQuantitySlabs: sql<number>`coalesce(sum(coalesce(nullif(${ownSlabs.quantitySlabs}, 0), 1)), 0)::int`,
+      totalQuantitySf: sql<number>`coalesce(sum(${sales.quantitySf}), 0)::numeric`,
+      totalQuantitySlabs: sql<number>`coalesce(sum(coalesce(nullif(${sales.quantitySlabs}, 0), 1)), 0)::int`,
     })
-    .from(ownSlabs)
-    .where(eq(ownSlabs.isBroken, false));
+    .from(sales)
+    .where(and(...baseConditions, eq(sales.isBroken, false)));
 
   // Get broken slab counts
   const brokenResult = await db
     .select({
-      brokenSlabs: sql<number>`coalesce(sum(coalesce(nullif(${ownSlabs.quantitySlabs}, 0), 1)), 0)::int`,
+      brokenSlabs: sql<number>`coalesce(sum(coalesce(nullif(${sales.quantitySlabs}, 0), 1)), 0)::int`,
     })
-    .from(ownSlabs)
-    .where(eq(ownSlabs.isBroken, true));
+    .from(sales)
+    .where(and(...baseConditions, eq(sales.isBroken, true)));
 
   return {
     totalItems: totalResult[0]?.totalItems || 0,
@@ -190,10 +199,10 @@ export async function getOwnSlabsStats() {
 }
 
 // Get combined inventory stats
-export async function getInventoryStats() {
+export async function getInventoryStats(userId?: string) {
   const [consignmentStats, ownSlabsStats] = await Promise.all([
-    getConsignmentStats(),
-    getOwnSlabsStats(),
+    getConsignmentStats(userId),
+    getOwnSlabsStats(userId),
   ]);
 
   return {
@@ -210,64 +219,76 @@ export async function getInventoryStats() {
 }
 
 // Get consignment slabs by slab name (excludes broken slabs)
-export async function getConsignmentBySlabName() {
+export async function getConsignmentBySlabName(userId?: string) {
+  const conditions = [eq(sales.documentType, "consignment"), eq(sales.isBroken, false)];
+  if (userId) conditions.push(eq(sales.userId, userId));
+
   const result = await db
     .select({
-      name: sql<string>`coalesce(${consignment.slabName}, 'Unknown')`,
-      value: sql<number>`coalesce(sum(coalesce(nullif(${consignment.quantitySlabs}, 0), 1)), 0)::int`,
+      name: sql<string>`coalesce(${sales.slabName}, 'Unknown')`,
+      value: sql<number>`coalesce(sum(coalesce(nullif(${sales.quantitySlabs}, 0), 1)), 0)::int`,
     })
-    .from(consignment)
-    .where(eq(consignment.isBroken, false))
-    .groupBy(consignment.slabName)
-    .orderBy(desc(sql`sum(coalesce(nullif(${consignment.quantitySlabs}, 0), 1))`))
+    .from(sales)
+    .where(and(...conditions))
+    .groupBy(sales.slabName)
+    .orderBy(desc(sql`sum(coalesce(nullif(${sales.quantitySlabs}, 0), 1))`))
     .limit(10);
 
   return result;
 }
 
 // Get own slabs by slab name (excludes broken slabs)
-export async function getOwnSlabsBySlabName() {
+export async function getOwnSlabsBySlabName(userId?: string) {
+  const conditions = [eq(sales.documentType, "own"), eq(sales.isBroken, false)];
+  if (userId) conditions.push(eq(sales.userId, userId));
+
   const result = await db
     .select({
-      name: sql<string>`coalesce(${ownSlabs.slabName}, 'Unknown')`,
-      value: sql<number>`coalesce(sum(coalesce(nullif(${ownSlabs.quantitySlabs}, 0), 1)), 0)::int`,
+      name: sql<string>`coalesce(${sales.slabName}, 'Unknown')`,
+      value: sql<number>`coalesce(sum(coalesce(nullif(${sales.quantitySlabs}, 0), 1)), 0)::int`,
     })
-    .from(ownSlabs)
-    .where(eq(ownSlabs.isBroken, false))
-    .groupBy(ownSlabs.slabName)
-    .orderBy(desc(sql`sum(coalesce(nullif(${ownSlabs.quantitySlabs}, 0), 1))`))
+    .from(sales)
+    .where(and(...conditions))
+    .groupBy(sales.slabName)
+    .orderBy(desc(sql`sum(coalesce(nullif(${sales.quantitySlabs}, 0), 1))`))
     .limit(10);
 
   return result;
 }
 
 // Get consignment slabs by vendor (excludes broken slabs)
-export async function getConsignmentByVendor() {
+export async function getConsignmentByVendor(userId?: string) {
+  const conditions = [eq(sales.documentType, "consignment"), eq(sales.isBroken, false)];
+  if (userId) conditions.push(eq(sales.userId, userId));
+
   const result = await db
     .select({
-      name: sql<string>`coalesce(${consignment.vendorName}, 'Unknown')`,
-      value: sql<number>`coalesce(sum(coalesce(nullif(${consignment.quantitySlabs}, 0), 1)), 0)::int`,
+      name: sql<string>`coalesce(${sales.vendorName}, 'Unknown')`,
+      value: sql<number>`coalesce(sum(coalesce(nullif(${sales.quantitySlabs}, 0), 1)), 0)::int`,
     })
-    .from(consignment)
-    .where(eq(consignment.isBroken, false))
-    .groupBy(consignment.vendorName)
-    .orderBy(desc(sql`sum(coalesce(nullif(${consignment.quantitySlabs}, 0), 1))`))
+    .from(sales)
+    .where(and(...conditions))
+    .groupBy(sales.vendorName)
+    .orderBy(desc(sql`sum(coalesce(nullif(${sales.quantitySlabs}, 0), 1))`))
     .limit(10);
 
   return result;
 }
 
 // Get own slabs by vendor (excludes broken slabs)
-export async function getOwnSlabsByVendor() {
+export async function getOwnSlabsByVendor(userId?: string) {
+  const conditions = [eq(sales.documentType, "own"), eq(sales.isBroken, false)];
+  if (userId) conditions.push(eq(sales.userId, userId));
+
   const result = await db
     .select({
-      name: sql<string>`coalesce(${ownSlabs.vendorName}, 'Unknown')`,
-      value: sql<number>`coalesce(sum(coalesce(nullif(${ownSlabs.quantitySlabs}, 0), 1)), 0)::int`,
+      name: sql<string>`coalesce(${sales.vendorName}, 'Unknown')`,
+      value: sql<number>`coalesce(sum(coalesce(nullif(${sales.quantitySlabs}, 0), 1)), 0)::int`,
     })
-    .from(ownSlabs)
-    .where(eq(ownSlabs.isBroken, false))
-    .groupBy(ownSlabs.vendorName)
-    .orderBy(desc(sql`sum(coalesce(nullif(${ownSlabs.quantitySlabs}, 0), 1))`))
+    .from(sales)
+    .where(and(...conditions))
+    .groupBy(sales.vendorName)
+    .orderBy(desc(sql`sum(coalesce(nullif(${sales.quantitySlabs}, 0), 1))`))
     .limit(10);
 
   return result;
@@ -280,10 +301,10 @@ export async function queryInventory(filters: QueryFilters = {}) {
 }
 
 // Combined slab count by slab name (from both tables)
-export async function getSlabsBySlabName() {
+export async function getSlabsBySlabName(userId?: string) {
   const [consignmentData, ownSlabsData] = await Promise.all([
-    getConsignmentBySlabName(),
-    getOwnSlabsBySlabName(),
+    getConsignmentBySlabName(userId),
+    getOwnSlabsBySlabName(userId),
   ]);
 
   // Combine data from both tables
@@ -303,16 +324,20 @@ export async function getSlabsBySlabName() {
 }
 
 // Slab count by vendor (consignment only)
-export async function getSlabsByVendor() {
+export async function getSlabsByVendor(userId?: string) {
   // Only return consignment vendor data
-  return getConsignmentByVendor();
+  return getConsignmentByVendor(userId);
 }
 
-// Get unique customer names (transferredTo) from own_slabs
-export async function getCustomerNames(): Promise<string[]> {
+// Get unique customer names (transferredTo) from own slabs
+export async function getCustomerNames(userId?: string): Promise<string[]> {
+  const conditions = [eq(sales.documentType, "own")];
+  if (userId) conditions.push(eq(sales.userId, userId));
+
   const result = await db
-    .selectDistinct({ transferredTo: ownSlabs.transferredTo })
-    .from(ownSlabs);
+    .selectDistinct({ transferredTo: sales.transferredTo })
+    .from(sales)
+    .where(and(...conditions));
 
   return result
     .map((r) => r.transferredTo)
@@ -321,18 +346,18 @@ export async function getCustomerNames(): Promise<string[]> {
 }
 
 // Legacy function for backward compatibility
-export async function getAllVendors() {
-  const [consignmentVendors, ownSlabsVendors] = await Promise.all([
-    db.selectDistinct({ vendorName: consignment.vendorName }).from(consignment),
-    db.selectDistinct({ vendorName: ownSlabs.vendorName }).from(ownSlabs),
-  ]);
+export async function getAllVendors(userId?: string) {
+  const conditions = [];
+  if (userId) conditions.push(eq(sales.userId, userId));
 
-  const allVendors = new Set([
-    ...consignmentVendors.map(r => r.vendorName),
-    ...ownSlabsVendors.map(r => r.vendorName),
-  ]);
+  const result = await db
+    .selectDistinct({ vendorName: sales.vendorName })
+    .from(sales)
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
 
-  return Array.from(allVendors);
+  return result
+    .map(r => r.vendorName)
+    .filter((name): name is string => !!name);
 }
 
 // Get vendor details with contact information and slab counts (consignment only)
@@ -345,18 +370,21 @@ export interface VendorDetails {
   source: 'consignment';
 }
 
-export async function getVendorDetails(): Promise<VendorDetails[]> {
+export async function getVendorDetails(userId?: string): Promise<VendorDetails[]> {
+  const conditions = [eq(sales.documentType, "consignment"), eq(sales.isBroken, false)];
+  if (userId) conditions.push(eq(sales.userId, userId));
+
   // Get vendor info from consignment only (excludes broken slabs)
   const consignmentVendors = await db
     .select({
-      vendorName: consignment.vendorName,
-      vendorAddress: consignment.vendorAddress,
-      vendorPhone: consignment.vendorPhone,
-      slabCount: sql<number>`coalesce(sum(coalesce(nullif(${consignment.quantitySlabs}, 0), 1)), 0)::int`,
+      vendorName: sales.vendorName,
+      vendorAddress: sales.vendorAddress,
+      vendorPhone: sales.vendorPhone,
+      slabCount: sql<number>`coalesce(sum(coalesce(nullif(${sales.quantitySlabs}, 0), 1)), 0)::int`,
     })
-    .from(consignment)
-    .where(eq(consignment.isBroken, false))
-    .groupBy(consignment.vendorName, consignment.vendorAddress, consignment.vendorPhone);
+    .from(sales)
+    .where(and(...conditions))
+    .groupBy(sales.vendorName, sales.vendorAddress, sales.vendorPhone);
 
   // Build vendor list from consignment only
   const vendorMap = new Map<string, VendorDetails>();

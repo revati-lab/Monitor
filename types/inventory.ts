@@ -1,10 +1,16 @@
-export type {
-  ConsignmentItem,
-  NewConsignmentItem,
-  OwnSlabItem,
-  NewOwnSlabItem,
-  SlabItem
-} from "@/drizzle/schema";
+import { sales } from "@/drizzle/schema";
+import { InferSelectModel, InferInsertModel } from "drizzle-orm";
+
+// Type for a sales record from the database
+export type SalesItem = InferSelectModel<typeof sales>;
+export type NewSalesItem = InferInsertModel<typeof sales>;
+
+// Legacy type aliases for backward compatibility
+export type SlabItem = SalesItem;
+export type ConsignmentItem = SalesItem;
+export type OwnSlabItem = SalesItem;
+export type NewConsignmentItem = NewSalesItem;
+export type NewOwnSlabItem = NewSalesItem;
 
 export interface ExtractedInventoryData {
   // Transfer/Receiving Worksheet fields (for consignment)
@@ -52,23 +58,26 @@ export interface ExtractedInventoryData {
 export interface ExtractionResult {
   success: boolean;
   data: ExtractedInventoryData;
-  // Determines which table to use
-  targetTable?: 'consignment' | 'own_slabs';
+  // Determines which document type to use
+  documentType?: 'consignment' | 'own';
   error?: string;
   errorCode?: 'API_KEY_MISSING' | 'API_ERROR' | 'FILE_UPLOAD_FAILED' | 'PARSE_ERROR' | 'UNSUPPORTED_FILE' | 'INVALID_CONTENT' | 'UNKNOWN';
   details?: string;
 }
 
-// Helper to determine target table based on extracted data
-export function determineTargetTable(data: ExtractedInventoryData): 'consignment' | 'own_slabs' {
+// Helper to determine document type based on extracted data
+export function determineDocumentType(data: ExtractedInventoryData): 'consignment' | 'own' {
   // If has transfer number, it's consignment
   if (data.transferNumber) {
     return 'consignment';
   }
-  // If has invoice number, it's own slabs
+  // If has invoice number, it's own
   if (data.invoiceNumber) {
-    return 'own_slabs';
+    return 'own';
   }
   // Default to consignment if unclear
   return 'consignment';
 }
+
+// Legacy function alias for backward compatibility
+export const determineTargetTable = determineDocumentType;

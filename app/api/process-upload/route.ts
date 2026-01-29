@@ -1,14 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { consignment, ownSlabs } from "@/drizzle/schema";
+import { sales } from "@/drizzle/schema";
 import { extractInventoryData } from "@/lib/geminiExtraction";
-import { determineTargetTable } from "@/types/inventory";
+import { determineDocumentType } from "@/types/inventory";
 import { join } from "path";
 import { unlink } from "fs/promises";
 import { existsSync } from "fs";
 
 export async function POST(request: NextRequest) {
   try {
+    // Get current user ID and email from Clerk
+    const { userId } = await auth();
+    const user = await currentUser();
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized - Please sign in" },
+        { status: 401 }
+      );
+    }
+
+    // Get user's primary email as fallback for destinationEmail
+    const userEmail = user?.emailAddresses?.[0]?.emailAddress || null;
+
     const body = await request.json();
     const { fileName, fileUrl, fileType, csvUrl, extractedData: preExtractedData } = body;
 
@@ -49,16 +64,20 @@ export async function POST(request: NextRequest) {
       extractedData = extractionResult.data;
     }
 
-    // Determine which table to use based on extracted data
-    const targetTable = determineTargetTable(extractedData);
-    console.log(`📊 Target table: ${targetTable} (transferNumber: ${extractedData.transferNumber || 'none'}, invoiceNumber: ${extractedData.invoiceNumber || 'none'})`);
+    // Determine document type based on extracted data
+    const documentType = determineDocumentType(extractedData);
+    console.log(`📊 Document type: ${documentType} (transferNumber: ${extractedData.transferNumber || 'none'}, invoiceNumber: ${extractedData.invoiceNumber || 'none'})`);
 
-    // Insert items into the appropriate database table
+    // Insert items into the sales table with appropriate documentType
     const insertedItems = [];
     for (const item of extractedData.items) {
       try {
-        // Base values shared by both tables
-        const baseValues: any = {
+        // Build values for the sales table
+        const salesValues: any = {
+          // User ID for filtering by user
+          userId: userId,
+          // Document type to distinguish between consignment and own
+          documentType: documentType,
           // Vendor/Supplier information
           vendorName: extractedData.vendorName,
           vendorAddress: extractedData.vendorAddress,
@@ -68,7 +87,7 @@ export async function POST(request: NextRequest) {
           transferredTo: extractedData.transferredTo,
           destinationAddress: extractedData.destinationAddress,
           destinationPhone: extractedData.destinationPhone,
-          destinationEmail: extractedData.destinationEmail,
+          destinationEmail: extractedData.destinationEmail || userEmail,
           // Shipping information
           reqShipDate: extractedData.reqShipDate,
           deliveryMethod: extractedData.deliveryMethod,
@@ -91,40 +110,25 @@ export async function POST(request: NextRequest) {
           unitPrice: item.unitPrice !== undefined ? item.unitPrice.toString() : undefined,
           totalPrice: item.totalPrice !== undefined ? item.totalPrice.toString() : undefined,
           sourceImageUrl: fileUrl,
+          // Add all document-specific fields (both types)
+          transferNumber: extractedData.transferNumber,
+          transferDate: extractedData.transferDate,
+          invoiceNumber: extractedData.invoiceNumber,
+          invoiceDate: extractedData.invoiceDate,
+          purchaseDate: extractedData.purchaseDate,
         };
 
         // Remove undefined values to avoid database errors
-        Object.keys(baseValues).forEach(key => {
-          if (baseValues[key] === undefined) {
-            delete baseValues[key];
+        Object.keys(salesValues).forEach(key => {
+          if (salesValues[key] === undefined) {
+            delete salesValues[key];
           }
         });
 
-        let inserted;
-        if (targetTable === 'consignment') {
-          // Add consignment-specific fields
-          const consignmentValues = {
-            ...baseValues,
-            transferNumber: extractedData.transferNumber,
-            transferDate: extractedData.transferDate,
-          };
-          [inserted] = await db
-            .insert(consignment)
-            .values(consignmentValues)
-            .returning();
-        } else {
-          // Add own_slabs-specific fields
-          const ownSlabsValues = {
-            ...baseValues,
-            invoiceNumber: extractedData.invoiceNumber,
-            invoiceDate: extractedData.invoiceDate,
-            purchaseDate: extractedData.purchaseDate,
-          };
-          [inserted] = await db
-            .insert(ownSlabs)
-            .values(ownSlabsValues)
-            .returning();
-        }
+        const [inserted] = await db
+          .insert(sales)
+          .values(salesValues)
+          .returning();
 
         insertedItems.push(inserted);
       } catch (insertError: any) {
@@ -166,7 +170,7 @@ export async function POST(request: NextRequest) {
       success: true,
       items: insertedItems,
       extractedData,
-      targetTable,
+      documentType,
     });
   } catch (error) {
     console.error("Process upload error:", error);
